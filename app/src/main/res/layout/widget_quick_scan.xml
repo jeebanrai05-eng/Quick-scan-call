@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_widget_cyber"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:padding="12dp">
+
+    <!-- Quick Scan Primary Button -->
+    <LinearLayout
+        android:id="@+id/btn_widget_quick_scan"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:background="?android:attr/selectableItemBackground"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="6dp">
+
+        <ImageView
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:contentDescription="@string/widget_quick_scan"
+            android:src="@drawable/ic_camera_scan" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="QUICK SCAN"
+                android:textColor="#00FF66"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Live OCR Camera"
+                android:textColor="#94A3B8"
+                android:textSize="10sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Divider -->
+    <View
+        android:layout_width="1dp"
+        android:layout_height="32dp"
+        android:layout_marginHorizontal="6dp"
+        android:background="#3338BDF8" />
+
+    <!-- T9 Dialer Quick Button -->
+    <LinearLayout
+        android:id="@+id/btn_widget_dialer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="?android:attr/selectableItemBackground"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="6dp">
+
+        <ImageView
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:contentDescription="T9 Dialer"
+            android:src="@drawable/ic_dialpad" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="T9 Dial"
+            android:textColor="#00F0FF"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+</LinearLayout>

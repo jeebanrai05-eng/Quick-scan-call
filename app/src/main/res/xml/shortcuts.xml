@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="quick_ocr_scan"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_quick_scan_short"
+        android:shortcutLongLabel="@string/shortcut_quick_scan_long">
+        <intent
+            android:action="com.example.ACTION_QUICK_SCAN"
+            android:targetPackage="com.aistudio.detectcaller.qkcall"
+            android:targetClass="com.example.MainActivity">
+            <extra
+                android:name="EXTRA_NAV_TARGET"
+                android:value="quick_scan" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="quick_t9_dialer"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_t9_dialer_short"
+        android:shortcutLongLabel="@string/shortcut_t9_dialer_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.aistudio.detectcaller.qkcall"
+            android:targetClass="com.example.MainActivity">
+            <extra
+                android:name="EXTRA_NAV_TARGET"
+                android:value="search_t9" />
+        </intent>
+    </shortcut>
+</shortcuts>

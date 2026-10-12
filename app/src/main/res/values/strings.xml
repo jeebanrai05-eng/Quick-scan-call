@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Quick Call Scan</string>
+    <string name="shortcut_quick_scan_short">Quick Scan</string>
+    <string name="shortcut_quick_scan_long">Quick OCR Number Scanner</string>
+    <string name="shortcut_t9_dialer_short">T9 Dialer</string>
+    <string name="shortcut_t9_dialer_long">Cyber T9 Smart Dialer</string>
+    <string name="widget_quick_scan">Quick OCR Scan</string>
+</resources>
