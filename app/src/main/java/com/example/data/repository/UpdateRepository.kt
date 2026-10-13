@@ -133,9 +133,29 @@ class UpdateRepository(
                 .header("User-Agent", "QuickCallScan-Android/${getCurrentVersionName()}")
                 .build()
 
-            val response = okHttpClient.newCall(request).execute()
+            var response = okHttpClient.newCall(request).execute()
+            if (!response.isSuccessful && response.code == 404) {
+                // If target version is still being published, try latest available release asset as fallback
+                val fallbackUrl = "https://github.com/jeebanrai05-eng/Quick-scan-call/releases/download/v1.0.1/app-release.apk"
+                if (apkUrl != fallbackUrl) {
+                    val fallbackRequest = Request.Builder()
+                        .url(fallbackUrl)
+                        .header("User-Agent", "QuickCallScan-Android/${getCurrentVersionName()}")
+                        .build()
+                    val fallbackResponse = okHttpClient.newCall(fallbackRequest).execute()
+                    if (fallbackResponse.isSuccessful) {
+                        response = fallbackResponse
+                    }
+                }
+            }
+
             if (!response.isSuccessful) {
-                emit(DownloadProgress.Error("Download failed with HTTP ${response.code}: ${response.message}"))
+                val errorMsg = if (response.code == 404) {
+                    "Release APK not yet published on GitHub (HTTP 404). Trigger the GitHub Actions release workflow or try again shortly."
+                } else {
+                    "Download failed with HTTP ${response.code}: ${response.message}"
+                }
+                emit(DownloadProgress.Error(errorMsg))
                 return@flow
             }
 

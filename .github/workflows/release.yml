@@ -98,27 +98,26 @@ jobs:
           echo "APK_SIZE=$APK_SIZE" >> $GITHUB_ENV
 
           # Inject real SHA256 and size into version.json for release distribution
-          python3 -c "
-import json
-with open('version.json', 'r') as f:
-    data = json.load(f)
-data['sha256'] = '$SHA256_HASH'
-data['fileSize'] = int('$APK_SIZE')
-with open('version.json', 'w') as f:
-    json.dump(data, f, indent=2)
-"
+          python3 -c "import json; f='version.json'; d=json.load(open(f)); d['sha256']='$SHA256_HASH'; d['fileSize']=int('$APK_SIZE'); json.dump(d, open(f,'w'), indent=2)"
 
       - name: Determine Release Tag
         id: release_info
         run: |
+          VERSION_NAME=$(grep -o '"versionName": *"[^"]*"' version.json | head -n 1 | cut -d'"' -f4)
+          FALLBACK_TAG="v${VERSION_NAME:-1.0.2}"
+
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             TAG="${{ inputs.tag_name }}"
             if [ -z "$TAG" ]; then
-              VERSION_NAME=$(grep -o '"versionName": *"[^"]*"' version.json | head -n 1 | cut -d'"' -f4)
-              TAG="v${VERSION_NAME:-1.0.2}"
+              TAG="$FALLBACK_TAG"
             fi
           else
-            TAG="${{ github.ref_name }}"
+            REF_NAME="${{ github.ref_name }}"
+            if [[ "$REF_NAME" == v* ]]; then
+              TAG="$REF_NAME"
+            else
+              TAG="$FALLBACK_TAG"
+            fi
           fi
           echo "Resolved release tag: $TAG"
           echo "tag=$TAG" >> $GITHUB_OUTPUT
@@ -131,6 +130,7 @@ with open('version.json', 'w') as f:
           draft: false
           prerelease: false
           generate_release_notes: true
+          make_latest: true
           files: |
             ${{ env.APK_PATH }}
             version.json
