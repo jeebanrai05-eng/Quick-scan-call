@@ -77,4 +77,19 @@ object PhoneActionHelper {
             Toast.makeText(context, "Share failed: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
+
+    fun sendSms(context: Context, phoneNumber: String, body: String? = null) {
+        try {
+            val uri = Uri.parse("smsto:${Uri.encode(phoneNumber.trim())}")
+            val intent = Intent(Intent.ACTION_SENDTO, uri).apply {
+                if (!body.isNullOrBlank()) {
+                    putExtra("sms_body", body)
+                }
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(context, "Could not open SMS app: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
 }

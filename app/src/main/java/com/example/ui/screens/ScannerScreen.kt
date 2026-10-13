@@ -3,6 +3,7 @@ package com.example.ui.screens
 import android.Manifest
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
@@ -47,6 +48,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CameraAlt
@@ -72,7 +74,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -105,13 +109,20 @@ import java.util.concurrent.Executors
 fun ScannerScreen(
     scannerViewModel: ScannerViewModel,
     initialSource: ScanSource = ScanSource.LIVE_CAMERA,
+    onNavigateBack: () -> Unit = {},
     onNavigateToCallerPopup: (String, String) -> Unit = { _, _ -> },
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val haptic = LocalHapticFeedback.current
     val uiState by scannerViewModel.uiState.collectAsStateWithLifecycle()
+
+    // Handle system back navigation gracefully
+    BackHandler {
+        onNavigateBack()
+    }
 
     var hasCameraPermission by remember {
         mutableStateOf(PermissionHelper.hasCameraPermission(context))
@@ -134,6 +145,7 @@ fun ScannerScreen(
     var cameraControl: Camera? by remember { mutableStateOf(null) }
     var imageCapture: ImageCapture? by remember { mutableStateOf(null) }
     var activePreviewView: PreviewView? by remember { mutableStateOf(null) }
+    var isCameraHardwareAvailable by remember { mutableStateOf(true) }
 
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
 
@@ -165,8 +177,18 @@ fun ScannerScreen(
         }
     }
 
+    // Trigger subtle haptic tick upon new target lock
+    LaunchedEffect(uiState.detectedNumbers.size) {
+        if (uiState.detectedNumbers.isNotEmpty()) {
+            runCatching {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            }
+        }
+    }
+
     if (!hasCameraPermission) {
         CameraPermissionRequestView(
+            onNavigateBack = onNavigateBack,
             onRequestPermission = {
                 runCatching {
                     permissionLauncher.launch(Manifest.permission.CAMERA)
@@ -199,7 +221,7 @@ fun ScannerScreen(
             .background(DarkBackground)
             .testTag("scanner_screen")
     ) {
-        // 1. CameraX High-Resolution Live Preview (Fault-Tolerant Binding)
+        // 1. CameraX High-Resolution Live Preview (Fault-Tolerant, Crash-Proof Binding)
         AndroidView(
             factory = { ctx ->
                 val previewView = PreviewView(ctx).apply {
@@ -214,7 +236,7 @@ fun ScannerScreen(
                 }.getOrDefault(false)
 
                 if (hasHardwareCamera) {
-                    runCatching {
+                    try {
                         val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
                         val executor = ContextCompat.getMainExecutor(ctx)
 
@@ -248,9 +270,9 @@ fun ScannerScreen(
                                     else -> CameraSelector.DEFAULT_BACK_CAMERA
                                 }
 
-                                cameraProvider.unbindAll()
+                                runCatching { cameraProvider.unbindAll() }
 
-                                // First try 3-stream bind (Preview + Analysis + Capture), fallback to 2-stream if LIMITED/LEGACY hardware
+                                // 3-stream bind (Preview + Analysis + Capture), fallback to 2-stream if hardware limited
                                 cameraControl = try {
                                     cameraProvider.bindToLifecycle(
                                         lifecycleOwner,
@@ -261,25 +283,91 @@ fun ScannerScreen(
                                     )
                                 } catch (_: Throwable) {
                                     imageCapture = null
-                                    cameraProvider.unbindAll()
-                                    cameraProvider.bindToLifecycle(
-                                        lifecycleOwner,
-                                        selector,
-                                        preview,
-                                        imageAnalysis
-                                    )
+                                    try {
+                                        runCatching { cameraProvider.unbindAll() }
+                                        cameraProvider.bindToLifecycle(
+                                            lifecycleOwner,
+                                            selector,
+                                            preview,
+                                            imageAnalysis
+                                        )
+                                    } catch (_: Throwable) {
+                                        isCameraHardwareAvailable = false
+                                        null
+                                    }
                                 }
                             } catch (_: Throwable) {
-                                // Camera hardware unavailable on emulator/device; UI remains interactive for Gallery / AI scan
+                                isCameraHardwareAvailable = false
                             }
                         }, executor)
+                    } catch (_: Throwable) {
+                        isCameraHardwareAvailable = false
                     }
+                } else {
+                    isCameraHardwareAvailable = false
                 }
 
                 previewView
             },
             modifier = Modifier.fillMaxSize()
         )
+
+        // Standby Viewfinder if Camera Sensor is in software emulation / fallback
+        if (!isCameraHardwareAvailable) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0x99050B14)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .padding(32.dp)
+                        .background(Color(0xEE091322), RoundedCornerShape(20.dp))
+                        .border(1.2.dp, CyberCyan.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
+                        .padding(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CameraAlt,
+                        contentDescription = null,
+                        tint = CyberCyan,
+                        modifier = Modifier.size(44.dp)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Camera Sensor Standby",
+                        color = TextPrimary,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Hardware preview unavailable on this device. You can scan phone numbers anytime via Gallery or tap 'Capture & AI Repair'.",
+                        color = TextSecondary,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    NeonPrimaryButton(
+                        onClick = { photoPickerLauncher.launch("image/*") },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Image,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "IMPORT IMAGE / SCREENSHOT",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.5.sp
+                        )
+                    }
+                }
+            }
+        }
 
         // 2. Ultra-Modern Holographic Laser & Sci-Fi Reticle Overlay
         val isTargetLocked = uiState.detectedNumbers.isNotEmpty()
@@ -294,94 +382,120 @@ fun ScannerScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 20.dp, start = 16.dp, end = 16.dp)
+                .padding(top = 18.dp, start = 14.dp, end = 14.dp)
                 .align(Alignment.TopCenter)
         ) {
-            // A. Dual Engine Segmented Pill Dock
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Color(0xCC070E1A))
-                    .border(
-                        1.2.dp,
-                        Brush.horizontalGradient(listOf(Color(0x6600FF66), Color(0x6600F0FF))),
-                        RoundedCornerShape(24.dp)
-                    )
-                    .padding(5.dp)
+            // Top Row: Back Button + Dual Engine Segmented Pill Dock
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                // Glass Circular Back Button
+                IconButton(
+                    onClick = onNavigateBack,
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xD9070E1A))
+                        .border(1.2.dp, Color(0x6600FF66), CircleShape)
+                        .testTag("scanner_btn_back")
                 ) {
-                    val isTurbo = uiState.engineMode == ScannerEngineMode.TURBO_MULTI_PASS
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = NeonGreen,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
 
-                    // Tab 1: Turbo Multi-Pass
-                    Surface(
-                        onClick = {
-                            if (!isTurbo) scannerViewModel.toggleEngineMode()
-                        },
-                        shape = RoundedCornerShape(20.dp),
-                        color = if (isTurbo) NeonGreen else Color.Transparent,
-                        modifier = Modifier.weight(1f)
+                Spacer(modifier = Modifier.width(10.dp))
+
+                // Dual Engine Segmented Pill Dock
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(Color(0xD9070E1A))
+                        .border(
+                            1.2.dp,
+                            Brush.horizontalGradient(listOf(Color(0x6600FF66), Color(0x6600F0FF))),
+                            RoundedCornerShape(24.dp)
+                        )
+                        .padding(4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.padding(vertical = 8.dp),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
+                        val isTurbo = uiState.engineMode == ScannerEngineMode.TURBO_MULTI_PASS
+
+                        // Tab 1: Turbo Multi-Pass
+                        Surface(
+                            onClick = {
+                                if (!isTurbo) scannerViewModel.toggleEngineMode()
+                            },
+                            shape = RoundedCornerShape(20.dp),
+                            color = if (isTurbo) NeonGreen else Color.Transparent,
+                            modifier = Modifier.weight(1f)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Bolt,
-                                contentDescription = null,
-                                tint = if (isTurbo) TextOnNeon else TextSecondary,
-                                modifier = Modifier.size(17.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "TURBO OCR",
-                                color = if (isTurbo) TextOnNeon else TextSecondary,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 0.5.sp
-                            )
+                            Row(
+                                modifier = Modifier.padding(vertical = 8.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Bolt,
+                                    contentDescription = null,
+                                    tint = if (isTurbo) TextOnNeon else TextSecondary,
+                                    modifier = Modifier.size(17.dp)
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text(
+                                    text = "TURBO OCR",
+                                    color = if (isTurbo) TextOnNeon else TextSecondary,
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    letterSpacing = 0.5.sp
+                                )
+                            }
                         }
-                    }
 
-                    // Tab 2: AI Vision Pro
-                    Surface(
-                        onClick = {
-                            if (isTurbo) scannerViewModel.toggleEngineMode()
-                        },
-                        shape = RoundedCornerShape(20.dp),
-                        color = if (!isTurbo) CyberCyan else Color.Transparent,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(vertical = 8.dp),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
+                        // Tab 2: AI Vision Pro
+                        Surface(
+                            onClick = {
+                                if (isTurbo) scannerViewModel.toggleEngineMode()
+                            },
+                            shape = RoundedCornerShape(20.dp),
+                            color = if (!isTurbo) CyberCyan else Color.Transparent,
+                            modifier = Modifier.weight(1f)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = null,
-                                tint = if (!isTurbo) Color(0xFF021020) else TextSecondary,
-                                modifier = Modifier.size(17.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "AI VISION PRO",
-                                color = if (!isTurbo) Color(0xFF021020) else TextSecondary,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 0.5.sp
-                            )
+                            Row(
+                                modifier = Modifier.padding(vertical = 8.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    tint = if (!isTurbo) Color(0xFF021020) else TextSecondary,
+                                    modifier = Modifier.size(17.dp)
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text(
+                                    text = "AI VISION PRO",
+                                    color = if (!isTurbo) Color(0xFF021020) else TextSecondary,
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    letterSpacing = 0.5.sp
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // B. Live Status Ticker Pill
             Row(
@@ -764,6 +878,12 @@ fun ScannerScreen(
                                 result = result,
                                 onCallClick = {
                                     PhoneActionHelper.openDialer(context, result.phoneNumber)
+                                },
+                                onDetailsClick = {
+                                    onNavigateToCallerPopup(
+                                        result.phoneNumber,
+                                        result.callerInfo?.name ?: "Recognized Caller"
+                                    )
                                 }
                             )
                         }
@@ -776,19 +896,43 @@ fun ScannerScreen(
 
 @Composable
 private fun CameraPermissionRequestView(
+    onNavigateBack: () -> Unit = {},
     onRequestPermission: () -> Unit,
     onPickGalleryClick: () -> Unit = {}
 ) {
+    BackHandler {
+        onNavigateBack()
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(DarkBackground)
-            .padding(24.dp),
-        contentAlignment = Alignment.Center
+            .padding(24.dp)
     ) {
+        // Back Button on Permission Request Screen
+        IconButton(
+            onClick = onNavigateBack,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(top = 16.dp)
+                .size(42.dp)
+                .clip(CircleShape)
+                .background(Color(0xD9070E1A))
+                .border(1.2.dp, Color(0x6600FF66), CircleShape)
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Back",
+                tint = NeonGreen,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.align(Alignment.Center)
         ) {
             Box(
                 contentAlignment = Alignment.Center,

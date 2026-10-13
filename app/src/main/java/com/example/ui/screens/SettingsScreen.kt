@@ -63,10 +63,13 @@ import com.example.ui.theme.TextSecondary
 import com.example.ui.theme.WarningAmber
 import com.example.utils.PermissionHelper
 import com.example.viewmodel.SettingsViewModel
+import com.example.viewmodel.UpdateViewModel
 
 @Composable
 fun SettingsScreen(
-    settingsViewModel: SettingsViewModel
+    settingsViewModel: SettingsViewModel,
+    updateViewModel: UpdateViewModel? = null,
+    onNavigateToUpdate: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val uiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
@@ -348,7 +351,67 @@ fun SettingsScreen(
             }
         }
 
-        // 5. App Info
+        // 5. Software Updates & GitHub Releases
+        item {
+            SettingsSectionHeader(title = "Software Updates & Releases")
+        }
+
+        item {
+            NeonGlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Security,
+                                contentDescription = null,
+                                tint = CyberCyan,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "GitHub Self-Updater",
+                                    color = TextPrimary,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Automated release checks & secure in-place updates",
+                                    color = TextMuted,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    HorizontalDivider(color = DarkGlassBorder)
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        NeonOutlinedButton(
+                            onClick = onNavigateToUpdate,
+                            borderColor = NeonGreen,
+                            contentColor = NeonGreen,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("settings_check_updates_button")
+                        ) {
+                            Text("Check for Updates →", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+        }
+
+        // 6. App Info
         item {
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
@@ -362,7 +425,7 @@ fun SettingsScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "v1.0.0 • ML Kit OCR • Room DB • AMOLED Dark",
+                        text = "v1.0.0 (build #1) • ML Kit OCR • Room DB • AMOLED Dark",
                         color = TextMuted,
                         fontSize = 11.sp
                     )

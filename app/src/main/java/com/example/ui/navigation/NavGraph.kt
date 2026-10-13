@@ -67,12 +67,16 @@ import com.example.viewmodel.CallerViewModel
 import com.example.viewmodel.ScannerViewModel
 import com.example.viewmodel.SettingsViewModel
 
+import com.example.ui.screens.UpdateScreen
+import com.example.viewmodel.UpdateViewModel
+
 @Composable
 fun AppNavGraph(
     navController: NavHostController,
     callerViewModel: CallerViewModel,
     scannerViewModel: ScannerViewModel,
     settingsViewModel: SettingsViewModel,
+    updateViewModel: UpdateViewModel,
     startDestination: String = Screen.Splash.route,
     pendingNumber: String? = null,
     pendingName: String? = null
@@ -91,7 +95,7 @@ fun AppNavGraph(
                     onItemClick = { screen ->
                         if (currentRoute != screen.route) {
                             navController.navigate(screen.route) {
-                                popUpTo(Screen.Home.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
                                     saveState = true
                                 }
                                 launchSingleTop = true
@@ -168,6 +172,17 @@ fun AppNavGraph(
             ) {
                 ScannerScreen(
                     scannerViewModel = scannerViewModel,
+                    onNavigateBack = {
+                        val popped = navController.popBackStack()
+                        if (!popped) {
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    inclusive = true
+                                }
+                                launchSingleTop = true
+                            }
+                        }
+                    },
                     onNavigateToCallerPopup = { number, name ->
                         navController.navigate("caller_popup?number=$number&name=$name")
                     }
@@ -194,7 +209,20 @@ fun AppNavGraph(
 
             composable(Screen.Settings.route) {
                 SettingsScreen(
-                    settingsViewModel = settingsViewModel
+                    settingsViewModel = settingsViewModel,
+                    updateViewModel = updateViewModel,
+                    onNavigateToUpdate = {
+                        navController.navigate(Screen.Update.route)
+                    }
+                )
+            }
+
+            composable(Screen.Update.route) {
+                UpdateScreen(
+                    updateViewModel = updateViewModel,
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    }
                 )
             }
 

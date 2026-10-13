@@ -6,24 +6,28 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.example.database.dao.CallRecordDao
 import com.example.database.dao.CallerDao
+import com.example.database.dao.ScanHistoryDao
 import com.example.database.dao.SpamDao
 import com.example.database.entity.CallRecordEntity
 import com.example.database.entity.CallerEntity
+import com.example.database.entity.ScanHistoryEntity
 import com.example.database.entity.SpamEntity
 
 @Database(
     entities = [
         CallerEntity::class,
         CallRecordEntity::class,
-        SpamEntity::class
+        SpamEntity::class,
+        ScanHistoryEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun callerDao(): CallerDao
     abstract fun callRecordDao(): CallRecordDao
     abstract fun spamDao(): SpamDao
+    abstract fun scanHistoryDao(): ScanHistoryDao
 
     companion object {
         @Volatile
@@ -36,7 +40,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "quick_call_database"
                 )
-                    .fallbackToDestructiveMigration()
+                    .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
                 INSTANCE = instance
                 instance

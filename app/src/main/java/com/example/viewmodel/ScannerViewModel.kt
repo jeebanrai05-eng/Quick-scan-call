@@ -16,15 +16,17 @@ import com.example.scanner.AiNumberScanner
 import com.example.scanner.OcrScanner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.InputStream
 
 enum class ScannerEngineMode {
     TURBO_MULTI_PASS,   // 120 FPS Local CV Contrast & Binarization + Glitch Repair
-    AI_DEEP_RESTORE     // Gemini 3.5 Flash Super-Resolution AI for Blurry / Damaged numbers
+    AI_DEEP_RESTORE     // Gemini Super-Resolution AI for Blurry / Damaged numbers
 }
 
 data class ScannerUiState(
@@ -35,6 +37,7 @@ data class ScannerUiState(
     val engineMode: ScannerEngineMode = ScannerEngineMode.TURBO_MULTI_PASS,
     val autoOpenDialer: Boolean = false,
     val isTorchOn: Boolean = false,
+    val zoomRatio: Float = 1.0f,
     val isProcessingImage: Boolean = false,
     val isAiProcessing: Boolean = false,
     val isAiConfigured: Boolean = AiNumberScanner.isAiAvailable(),
@@ -49,6 +52,13 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     private val _uiState = MutableStateFlow(ScannerUiState())
     val uiState: StateFlow<ScannerUiState> = _uiState.asStateFlow()
 
+    val scanVault: StateFlow<List<ScanResult>> = repository.scanHistory
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
     fun createCameraAnalyzer(): ImageAnalysis.Analyzer {
         return OcrScanner.LiveImageAnalyzer { scanResults, fullText ->
             if (scanResults.isNotEmpty()) {
@@ -59,15 +69,21 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                     }
 
                     val currentList = _uiState.value.detectedNumbers.toMutableList()
-                    // Merge new numbers avoiding duplicates
+                    val newItems = mutableListOf<ScanResult>()
+
                     for (item in enrichedResults) {
                         if (currentList.none { it.formattedNumber == item.formattedNumber }) {
                             currentList.add(0, item)
+                            newItems.add(item)
                         }
                     }
 
+                    if (newItems.isNotEmpty()) {
+                        repository.saveScannedNumbers(newItems)
+                    }
+
                     _uiState.value = _uiState.value.copy(
-                        detectedNumbers = currentList.take(25),
+                        detectedNumbers = currentList.take(30),
                         latestScannedText = fullText.take(200)
                     )
 
@@ -97,6 +113,10 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             val enriched = aiResults.map { res ->
                 val caller = repository.getCaller(res.phoneNumber)
                 res.copy(callerInfo = caller)
+            }
+
+            if (enriched.isNotEmpty()) {
+                repository.saveScannedNumbers(enriched)
             }
 
             val currentList = _uiState.value.detectedNumbers.toMutableList()
@@ -152,6 +172,10 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                 res.copy(callerInfo = caller)
             }
 
+            if (enriched.isNotEmpty()) {
+                repository.saveScannedNumbers(enriched)
+            }
+
             _uiState.value = _uiState.value.copy(
                 isProcessingImage = false,
                 detectedNumbers = enriched,
@@ -180,6 +204,10 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         _uiState.value = _uiState.value.copy(isTorchOn = !_uiState.value.isTorchOn)
     }
 
+    fun setZoomRatio(ratio: Float) {
+        _uiState.value = _uiState.value.copy(zoomRatio = ratio.coerceIn(1.0f, 4.0f))
+    }
+
     fun toggleAutoDial() {
         _uiState.value = _uiState.value.copy(autoOpenDialer = !_uiState.value.autoOpenDialer)
     }
@@ -190,6 +218,18 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
 
     fun clearDetected() {
         _uiState.value = _uiState.value.copy(detectedNumbers = emptyList(), latestScannedText = "")
+    }
+
+    fun deleteFromVault(phoneNumber: String) {
+        viewModelScope.launch {
+            repository.deleteScannedNumber(phoneNumber)
+        }
+    }
+
+    fun clearVault() {
+        viewModelScope.launch {
+            repository.clearScanHistory()
+        }
     }
 
     fun clearMessage() {

@@ -22,28 +22,29 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
-import androidx.compose.material.icons.filled.Report
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -72,15 +73,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.model.CallerType
-import com.example.ui.components.CallerBadge
-import com.example.ui.components.DangerButton
-import com.example.ui.components.GlassCard
+import com.example.ui.components.CarrierBadge
 import com.example.ui.components.NeonGlassCard
 import com.example.ui.components.NeonOutlinedButton
-import com.example.ui.components.NeonPrimaryButton
 import com.example.ui.theme.CyberCyan
 import com.example.ui.theme.DarkBackground
-import com.example.ui.theme.DarkSurface
 import com.example.ui.theme.DarkSurfaceVariant
 import com.example.ui.theme.NeonGreen
 import com.example.ui.theme.SpamRed
@@ -89,8 +86,6 @@ import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.ui.theme.WarningAmber
 import com.example.utils.PhoneActionHelper
-import com.example.utils.SpamDetector
-import com.example.utils.SpamRiskTier
 import com.example.viewmodel.CallerViewModel
 
 @Composable
@@ -108,6 +103,8 @@ fun CallerPopupScreen(
 
     val activeCaller by callerViewModel.activeCaller.collectAsStateWithLifecycle()
     val analysis by callerViewModel.activeSpamAnalysis.collectAsStateWithLifecycle()
+    val aiSecurityAudit by callerViewModel.aiSecurityAudit.collectAsStateWithLifecycle()
+    val isAuditingAi by callerViewModel.isAuditingAi.collectAsStateWithLifecycle()
 
     val isSpam = analysis?.score?.let { it >= 50 } == true || activeCaller?.isSpam == true
 
@@ -210,29 +207,25 @@ fun CallerPopupScreen(
                     OutlinedTextField(
                         value = editingNote,
                         onValueChange = { editingNote = it },
-                        placeholder = { Text("e.g. Electrician, met at conference...", color = TextMuted) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
+                        placeholder = { Text("e.g. Electrician, College Friend, Office Desk", color = TextMuted) },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = CyberCyan,
-                            unfocusedBorderColor = Color(0x33475569),
-                            focusedContainerColor = Color(0xFF0F172A),
-                            unfocusedContainerColor = Color(0xFF0F172A),
                             focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = CyberCyan,
+                            unfocusedBorderColor = Color(0x33475569)
                         ),
-                        singleLine = true
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        callerViewModel.updateCallerNoteAndTag(phoneNumber, editingNote.ifBlank { null }, editingTag)
+                        callerViewModel.updateCallerNoteAndTag(phoneNumber, editingNote, editingTag)
                         showTagDialog = false
                     }
                 ) {
-                    Text("Save Tag", color = NeonGreen, fontWeight = FontWeight.ExtraBold)
+                    Text("Save Tag", color = NeonGreen, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -243,29 +236,90 @@ fun CallerPopupScreen(
         )
     }
 
+    // Spam Report Dialog
+    if (showReportDialog) {
+        var reportReason by remember { mutableStateOf("Fraud / Bank Phishing Scam") }
+        AlertDialog(
+            onDismissRequest = { showReportDialog = false },
+            containerColor = DarkSurfaceVariant,
+            title = {
+                Text(
+                    text = "Report Suspicious Number",
+                    color = SpamRed,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Why are you reporting $phoneNumber?",
+                        color = TextSecondary,
+                        fontSize = 13.sp
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    val reasons = listOf(
+                        "Fraud / Bank Phishing Scam",
+                        "Robocall / Automated Sales",
+                        "Harassment / Threat Call",
+                        "Lottery / Prize Scam",
+                        "Fake Delivery / Courier Agent"
+                    )
+                    reasons.forEach { r ->
+                        val isSelected = reportReason == r
+                        Surface(
+                            onClick = { reportReason = r },
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isSelected) SpamRed.copy(alpha = 0.2f) else Color.Transparent,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) SpamRed else Color(0x22475569)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = r,
+                                color = if (isSelected) SpamRed else TextPrimary,
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        callerViewModel.reportSpam(phoneNumber, reportReason, activeCaller?.name)
+                        showReportDialog = false
+                        Toast.makeText(context, "Report submitted! Number blocked locally.", Toast.LENGTH_SHORT).show()
+                    }
+                ) {
+                    Text("Submit & Block", color = SpamRed, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showReportDialog = false }) {
+                    Text("Cancel", color = TextSecondary)
+                }
+            }
+        )
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = if (isSpam) {
-                        listOf(Color(0xFF26050E), DarkBackground, DarkBackground)
-                    } else {
-                        listOf(Color(0xFF07191C), DarkBackground, DarkBackground)
-                    }
-                )
-            )
-            .padding(20.dp)
+            .background(DarkBackground)
             .testTag("caller_popup_screen")
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 20.dp, bottom = 20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Header: Status badge & Favorite Toggle
+            // Top Navigation / Status Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -273,10 +327,10 @@ fun CallerPopupScreen(
             ) {
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = if (isSpam) SpamRed.copy(alpha = 0.2f) else NeonGreen.copy(alpha = 0.2f),
+                    color = if (isSpam) SpamRed.copy(alpha = 0.18f) else NeonGreen.copy(alpha = 0.15f),
                     border = androidx.compose.foundation.BorderStroke(
                         1.dp,
-                        if (isSpam) SpamRed else NeonGreen
+                        if (isSpam) SpamRed.copy(alpha = 0.5f) else NeonGreen.copy(alpha = 0.5f)
                     )
                 ) {
                     Row(
@@ -324,7 +378,7 @@ fun CallerPopupScreen(
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
-                    .size(110.dp)
+                    .size(100.dp)
                     .scale(pulseScale)
                     .background(
                         if (isSpam) Color(0x33FF3366) else Color(0x2600FF66),
@@ -340,7 +394,7 @@ fun CallerPopupScreen(
                     imageVector = if (isSpam) Icons.Default.Warning else Icons.Default.Person,
                     contentDescription = null,
                     tint = if (isSpam) SpamRed else NeonGreen,
-                    modifier = Modifier.size(54.dp)
+                    modifier = Modifier.size(50.dp)
                 )
             }
 
@@ -365,19 +419,22 @@ fun CallerPopupScreen(
                 fontWeight = FontWeight.SemiBold
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
-            // Location, Carrier & Tags
+            // Carrier Badge and Location
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.Center
             ) {
+                CarrierBadge(phoneNumber = activeCaller?.phoneNumber ?: phoneNumber)
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "📍 ${activeCaller?.city ?: "Unknown City"} • 📡 ${activeCaller?.carrier ?: "Cellular"}",
+                    text = "📍 ${activeCaller?.city ?: "Unknown City"}",
                     color = TextSecondary,
                     fontSize = 12.sp
                 )
                 if (activeCaller?.tag != null) {
+                    Spacer(modifier = Modifier.width(6.dp))
                     Surface(
                         shape = RoundedCornerShape(6.dp),
                         color = CyberCyan.copy(alpha = 0.2f)
@@ -395,7 +452,151 @@ fun CallerPopupScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Middle: Detailed Spam / Caller Intelligence Card
+            // Gemini AI Deep Security Audit Card
+            NeonGlassCard(
+                modifier = Modifier.fillMaxWidth(),
+                cornerRadius = 20.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                tint = CyberCyan,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "GEMINI AI SCAM AUDIT",
+                                color = CyberCyan,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 1.sp
+                            )
+                        }
+
+                        if (!isAuditingAi) {
+                            Surface(
+                                onClick = { callerViewModel.auditCallerWithAi(phoneNumber) },
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFF132238),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, CyberCyan.copy(alpha = 0.5f))
+                            ) {
+                                Text(
+                                    text = if (aiSecurityAudit == null) "Run Audit" else "Re-Analyze",
+                                    color = CyberCyan,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    if (isAuditingAi) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                color = CyberCyan,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "Evaluating fraud heuristics & telecom databases...",
+                                color = TextSecondary,
+                                fontSize = 12.sp
+                            )
+                        }
+                    } else if (aiSecurityAudit != null) {
+                        val audit = aiSecurityAudit!!
+                        val auditColor = when (audit.riskLevel) {
+                            "CRITICAL FRAUD" -> SpamRed
+                            "HIGH RISK" -> WarningAmber
+                            "VERIFIED SAFE" -> NeonGreen
+                            else -> CyberCyan
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = auditColor.copy(alpha = 0.2f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, auditColor.copy(alpha = 0.6f))
+                            ) {
+                                Text(
+                                    text = "⚡ ${audit.riskLevel}",
+                                    color = auditColor,
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                )
+                            }
+
+                            Text(
+                                text = "${audit.confidencePercent}% Confidence",
+                                color = TextMuted,
+                                fontSize = 11.sp
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = "Threat: ${audit.threatCategory}",
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = audit.analysisSummary,
+                            color = TextSecondary,
+                            fontSize = 12.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            audit.safetyRecommendations.forEach { rec ->
+                                Row(verticalAlignment = Alignment.Top) {
+                                    Text("🛡️", fontSize = 11.sp)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(text = rec, color = Color(0xFFE2E8F0), fontSize = 11.5.sp)
+                                }
+                            }
+                        }
+                    } else {
+                        Text(
+                            text = "Tap 'Run Audit' to verify this caller against phishing, OTP extortion, and Wangiri scam patterns.",
+                            color = TextSecondary,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Community Threat Radar Card
             NeonGlassCard(
                 modifier = Modifier.fillMaxWidth(),
                 isSpamAlert = isSpam,
@@ -460,7 +661,7 @@ fun CallerPopupScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Quick Action Icons (Tag, WhatsApp, Copy, Save, Share)
+                    // Quick Action Icons (Tag, WhatsApp, SMS, Copy, Save, Share)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
@@ -469,6 +670,11 @@ fun CallerPopupScreen(
                             icon = Icons.Default.Bookmark,
                             label = "Tag / Note",
                             onClick = { showTagDialog = true }
+                        )
+                        QuickActionRoundButton(
+                            icon = Icons.Default.Message,
+                            label = "SMS",
+                            onClick = { PhoneActionHelper.sendSms(context, phoneNumber) }
                         )
                         QuickActionRoundButton(
                             icon = Icons.Default.ContentCopy,
@@ -491,126 +697,117 @@ fun CallerPopupScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Bottom Call Action Buttons: Decline/Hang up and Answer/Dial, plus Block/Report
-            Column(
+            // Block & Report Row
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Secondary row: Quick Block / Report button
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                NeonOutlinedButton(
+                    onClick = {
+                        callerViewModel.blockNumber(phoneNumber, !(activeCaller?.isBlocked ?: false))
+                        Toast.makeText(context, "Block status updated", Toast.LENGTH_SHORT).show()
+                    },
+                    borderColor = if (activeCaller?.isBlocked == true) NeonGreen else SpamRed,
+                    modifier = Modifier.weight(1f)
                 ) {
-                    NeonOutlinedButton(
-                        onClick = {
-                            callerViewModel.blockNumber(phoneNumber, !(activeCaller?.isBlocked ?: false))
-                            Toast.makeText(context, "Block status updated", Toast.LENGTH_SHORT).show()
-                        },
-                        borderColor = if (activeCaller?.isBlocked == true) NeonGreen else SpamRed,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Block,
-                            contentDescription = null,
-                            tint = if (activeCaller?.isBlocked == true) NeonGreen else SpamRed,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = if (activeCaller?.isBlocked == true) "Unblock" else "Block Number",
-                            fontSize = 13.sp
-                        )
-                    }
-
-                    NeonOutlinedButton(
-                        onClick = {
-                            callerViewModel.reportSpam(phoneNumber, "User reported fraud / robocall", activeCaller?.name)
-                            Toast.makeText(context, "Reported as Fraud Spam!", Toast.LENGTH_SHORT).show()
-                        },
-                        borderColor = WarningAmber,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Flag,
-                            contentDescription = null,
-                            tint = WarningAmber,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Report Fraud",
-                            color = WarningAmber,
-                            fontSize = 13.sp
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Default.Block,
+                        contentDescription = null,
+                        tint = if (activeCaller?.isBlocked == true) NeonGreen else SpamRed,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (activeCaller?.isBlocked == true) "Unblock" else "Block Number",
+                        fontSize = 13.sp
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Large Main Answer & Decline Controls
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceAround,
-                    verticalAlignment = Alignment.CenterVertically
+                NeonOutlinedButton(
+                    onClick = { showReportDialog = true },
+                    borderColor = WarningAmber,
+                    modifier = Modifier.weight(1f)
                 ) {
-                    // Decline / Dismiss
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        IconButton(
-                            onClick = { onDismiss() },
-                            modifier = Modifier
-                                .size(62.dp)
-                                .clip(CircleShape)
-                                .background(SpamRed)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CallEnd,
-                                contentDescription = "Decline Call",
-                                tint = Color.White,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(text = "Decline", color = TextSecondary, fontSize = 12.sp)
-                    }
+                    Icon(
+                        imageVector = Icons.Default.Flag,
+                        contentDescription = null,
+                        tint = WarningAmber,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Report Fraud",
+                        color = WarningAmber,
+                        fontSize = 13.sp
+                    )
+                }
+            }
 
-                    // Open WhatsApp Quick
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Surface(
-                            onClick = { PhoneActionHelper.openWhatsApp(context, phoneNumber) },
-                            shape = CircleShape,
-                            color = Color(0xFF25D366),
-                            modifier = Modifier.size(52.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text("💬", fontSize = 22.sp)
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(text = "WhatsApp", color = TextSecondary, fontSize = 12.sp)
-                    }
+            Spacer(modifier = Modifier.height(20.dp))
 
-                    // Answer / Open Dialer
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        IconButton(
-                            onClick = {
-                                PhoneActionHelper.openDialer(context, phoneNumber)
-                                onDismiss()
-                            },
-                            modifier = Modifier
-                                .size(62.dp)
-                                .clip(CircleShape)
-                                .background(NeonGreen)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Call,
-                                contentDescription = "Answer Call",
-                                tint = Color(0xFF041208),
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(text = "Answer", color = NeonGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            // Large Main Answer & Decline Controls
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Decline / Dismiss
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    IconButton(
+                        onClick = { onDismiss() },
+                        modifier = Modifier
+                            .size(62.dp)
+                            .clip(CircleShape)
+                            .background(SpamRed)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CallEnd,
+                            contentDescription = "Decline Call",
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
                     }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(text = "Decline", color = TextSecondary, fontSize = 12.sp)
+                }
+
+                // Open WhatsApp Quick
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Surface(
+                        onClick = { PhoneActionHelper.openWhatsApp(context, phoneNumber) },
+                        shape = CircleShape,
+                        color = Color(0xFF25D366),
+                        modifier = Modifier.size(52.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("💬", fontSize = 22.sp)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(text = "WhatsApp", color = TextSecondary, fontSize = 12.sp)
+                }
+
+                // Answer / Open Dialer
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    IconButton(
+                        onClick = {
+                            PhoneActionHelper.openDialer(context, phoneNumber)
+                            onDismiss()
+                        },
+                        modifier = Modifier
+                            .size(62.dp)
+                            .clip(CircleShape)
+                            .background(NeonGreen)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Call,
+                            contentDescription = "Answer Call",
+                            tint = Color(0xFF041208),
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(text = "Answer", color = NeonGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

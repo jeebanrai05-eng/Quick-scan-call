@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Icon
@@ -46,7 +47,8 @@ import com.example.utils.PhoneActionHelper
 fun DetectedNumberCard(
     result: ScanResult,
     modifier: Modifier = Modifier,
-    onCallClick: (() -> Unit)? = null
+    onCallClick: (() -> Unit)? = null,
+    onDetailsClick: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val caller = result.callerInfo
@@ -69,17 +71,21 @@ fun DetectedNumberCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = Color.White.copy(alpha = 0.08f)
-                ) {
-                    Text(
-                        text = "🎯 ${result.label.uppercase()}",
-                        color = CyberCyan,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = Color.White.copy(alpha = 0.08f)
+                    ) {
+                        Text(
+                            text = "🎯 ${result.label.uppercase()}",
+                            color = CyberCyan,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                    CarrierBadge(phoneNumber = result.phoneNumber)
                 }
 
                 if (caller != null) {
@@ -91,17 +97,45 @@ fun DetectedNumberCard(
 
             // Caller name if known
             if (caller != null && caller.callerType != CallerType.UNKNOWN) {
-                Text(
-                    text = caller.name,
-                    color = if (isSpam) SpamRed else TextPrimary,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "📍 ${caller.city} • 📡 ${caller.carrier}",
-                    color = TextSecondary,
-                    fontSize = 12.sp
-                )
+                Surface(
+                    onClick = { onDetailsClick?.invoke() },
+                    color = Color.Transparent
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = caller.name,
+                                color = if (isSpam) SpamRed else TextPrimary,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "📍 ${caller.city} • 📡 ${caller.carrier}",
+                                color = TextSecondary,
+                                fontSize = 12.sp
+                            )
+                        }
+                        if (onDetailsClick != null) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = CyberCyan.copy(alpha = 0.15f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, CyberCyan.copy(alpha = 0.4f))
+                            ) {
+                                Text(
+                                    text = "INFO ↗",
+                                    color = CyberCyan,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                }
                 Spacer(modifier = Modifier.height(4.dp))
             }
 
@@ -163,14 +197,34 @@ fun DetectedNumberCard(
                     },
                     shape = RoundedCornerShape(12.dp),
                     color = Color(0xFF25D366).copy(alpha = 0.2f),
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier.size(44.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
                             text = "💬",
-                            fontSize = 18.sp
+                            fontSize = 17.sp
                         )
                     }
+                }
+
+                Spacer(modifier = Modifier.width(6.dp))
+
+                // SMS Shortcut
+                IconButton(
+                    onClick = {
+                        PhoneActionHelper.sendSms(context, result.phoneNumber)
+                    },
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.08f))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Message,
+                        contentDescription = "Send SMS",
+                        tint = CyberCyan,
+                        modifier = Modifier.size(17.dp)
+                    )
                 }
 
                 Spacer(modifier = Modifier.width(6.dp))

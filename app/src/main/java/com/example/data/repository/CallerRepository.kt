@@ -7,12 +7,17 @@ import com.example.data.model.CallRecord
 import com.example.data.model.CallType
 import com.example.data.model.CallerInfo
 import com.example.data.model.CallerType
+import com.example.data.model.ScanResult
 import com.example.data.model.SpamReport
 import com.example.database.AppDatabase
 import com.example.database.entity.CallRecordEntity
 import com.example.database.entity.CallerEntity
+import com.example.database.entity.ScanHistoryEntity
 import com.example.database.entity.SpamEntity
+import com.example.scanner.AiCallerAuditor
+import com.example.scanner.AiSecurityAudit
 import com.example.scanner.PhoneNumberExtractor
+import com.example.utils.CarrierResolver
 import com.example.utils.PermissionHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -27,6 +32,7 @@ class CallerRepository(
     private val callerDao = database.callerDao()
     private val callRecordDao = database.callRecordDao()
     private val spamDao = database.spamDao()
+    private val scanHistoryDao = database.scanHistoryDao()
 
     val allCallers: Flow<List<CallerInfo>> = callerDao.getAllCallers()
         .map { list -> list.map { it.toDomain() } }
@@ -47,6 +53,31 @@ class CallerRepository(
     val favoriteCallers: Flow<List<CallerInfo>> = callerDao.getFavoriteCallers()
         .map { list -> list.map { it.toDomain() } }
         .flowOn(Dispatchers.IO)
+
+    val scanHistory: Flow<List<ScanResult>> = scanHistoryDao.getAllScanned()
+        .map { list -> list.map { it.toDomain() } }
+        .flowOn(Dispatchers.IO)
+
+    suspend fun saveScannedNumber(result: ScanResult) = withContext(Dispatchers.IO) {
+        val carrierOrigin = CarrierResolver.resolve(result.phoneNumber)
+        scanHistoryDao.insertScanned(ScanHistoryEntity.fromDomain(result, carrierOrigin.carrier))
+    }
+
+    suspend fun saveScannedNumbers(results: List<ScanResult>) = withContext(Dispatchers.IO) {
+        val entities = results.map { res ->
+            val origin = CarrierResolver.resolve(res.phoneNumber)
+            ScanHistoryEntity.fromDomain(res, origin.carrier)
+        }
+        scanHistoryDao.insertScannedList(entities)
+    }
+
+    suspend fun clearScanHistory() = withContext(Dispatchers.IO) {
+        scanHistoryDao.clearAllScanned()
+    }
+
+    suspend fun deleteScannedNumber(phoneNumber: String) = withContext(Dispatchers.IO) {
+        scanHistoryDao.deleteByPhoneNumber(phoneNumber)
+    }
 
     suspend fun toggleFavorite(phoneNumber: String, isFavorite: Boolean) = withContext(Dispatchers.IO) {
         val normalized = PhoneNumberExtractor.normalizePhoneNumber(phoneNumber)
@@ -70,9 +101,19 @@ class CallerRepository(
         }
     }
 
+    suspend fun auditCallerWithAi(phoneNumber: String): AiSecurityAudit = withContext(Dispatchers.IO) {
+        val caller = getCaller(phoneNumber)
+        AiCallerAuditor.auditNumberWithAi(
+            phoneNumber = phoneNumber,
+            callerName = caller?.name,
+            category = caller?.category,
+            reportsCount = caller?.reportsCount ?: 0
+        )
+    }
+
     suspend fun getCaller(phoneNumber: String): CallerInfo? = withContext(Dispatchers.IO) {
         val normalized = PhoneNumberExtractor.normalizePhoneNumber(phoneNumber)
-        
+
         // 1. Check local database for user-blocked, reported, or previously saved contacts
         val fromDb = callerDao.getCallerByNormalizedNumber(normalized)?.toDomain()
         if (fromDb != null) return@withContext fromDb
@@ -86,115 +127,123 @@ class CallerRepository(
             }
         }
 
-        // 3. Resolve real country & region info from number
-        val (country, region, carrier) = resolveOrigin(phoneNumber)
+        // 3. Resolve real country & region info with CarrierResolver
+        val origin = CarrierResolver.resolve(phoneNumber)
 
         CallerInfo(
             phoneNumber = phoneNumber,
             normalizedNumber = normalized,
-            name = "Unlisted Number",
+            name = if (origin.carrierCode in listOf("NTC", "NCELL", "SMART")) "${origin.carrier} User" else "Unlisted Number",
             callerType = CallerType.UNKNOWN,
-            category = "Unlisted Caller",
-            city = region,
-            country = country,
-            carrier = carrier
+            category = origin.region,
+            city = origin.region,
+            country = origin.country,
+            carrier = origin.carrier
         )
     }
 
-    suspend fun searchCallers(query: String): Flow<List<CallerInfo>> = withContext(Dispatchers.IO) {
-        callerDao.searchCallers(query).map { list -> list.map { it.toDomain() } }
+    suspend fun reportSpam(
+        phoneNumber: String,
+        reason: String,
+        details: String?,
+        category: String = "Spam / Telemarketing"
+    ) = withContext(Dispatchers.IO) {
+        val normalized = PhoneNumberExtractor.normalizePhoneNumber(phoneNumber)
+        val origin = CarrierResolver.resolve(phoneNumber)
+
+        val report = SpamEntity(
+            phoneNumber = phoneNumber,
+            normalizedNumber = normalized,
+            reportReason = reason,
+            reportedCount = 1,
+            severity = if (category.contains("FRAUD", ignoreCase = true)) "CRITICAL" else "HIGH",
+            reportedAt = System.currentTimeMillis()
+        )
+        spamDao.insertSpamReport(report)
+
+        val existing = callerDao.getCallerByNormalizedNumber(normalized)
+        if (existing != null) {
+            callerDao.reportCallerAsSpam(normalized, spamScore = (existing.spamScore + 25).coerceAtMost(100))
+        } else {
+            val caller = CallerEntity(
+                phoneNumber = phoneNumber,
+                normalizedNumber = normalized,
+                name = "Reported Spam Caller",
+                callerType = CallerType.SPAM.name,
+                category = category,
+                spamScore = 75,
+                reportsCount = 1,
+                city = origin.region,
+                country = origin.country,
+                carrier = origin.carrier,
+                isBlocked = true
+            )
+            callerDao.insertCaller(caller)
+        }
     }
 
-    suspend fun addCaller(caller: CallerInfo) = withContext(Dispatchers.IO) {
-        callerDao.insertCaller(CallerEntity.fromDomain(caller))
-    }
-
-    suspend fun blockNumber(phoneNumber: String, block: Boolean = true) = withContext(Dispatchers.IO) {
+    suspend fun setBlockedStatus(phoneNumber: String, isBlocked: Boolean) = withContext(Dispatchers.IO) {
         val normalized = PhoneNumberExtractor.normalizePhoneNumber(phoneNumber)
         val existing = callerDao.getCallerByNormalizedNumber(normalized)
         if (existing != null) {
-            callerDao.setBlockedStatus(normalized, block)
+            callerDao.setBlockedStatus(normalized, isBlocked)
         } else {
-            val (country, region, carrier) = resolveOrigin(phoneNumber)
-            callerDao.insertCaller(
-                CallerEntity(
-                    phoneNumber = phoneNumber,
-                    normalizedNumber = normalized,
-                    name = "Blocked Number",
-                    callerType = CallerType.SPAM.name,
-                    category = "Blocked by User",
-                    spamScore = 100,
-                    city = region,
-                    country = country,
-                    carrier = carrier,
-                    isBlocked = block
-                )
+            val origin = CarrierResolver.resolve(phoneNumber)
+            val caller = CallerEntity(
+                phoneNumber = phoneNumber,
+                normalizedNumber = normalized,
+                name = "Blocked Caller",
+                callerType = CallerType.SPAM.name,
+                category = "User Blocked",
+                city = origin.region,
+                country = origin.country,
+                carrier = origin.carrier,
+                isBlocked = isBlocked
             )
+            callerDao.insertCaller(caller)
         }
     }
 
-    suspend fun reportSpam(phoneNumber: String, reason: String, callerName: String? = null) = withContext(Dispatchers.IO) {
-        val normalized = PhoneNumberExtractor.normalizePhoneNumber(phoneNumber)
-
-        val existingSpam = spamDao.getSpamReport(normalized)
-        if (existingSpam != null) {
-            spamDao.incrementReportCount(normalized)
-        } else {
-            spamDao.insertSpamReport(
-                SpamEntity(
-                    phoneNumber = phoneNumber,
-                    normalizedNumber = normalized,
-                    reportReason = reason,
-                    reportedCount = 1,
-                    severity = "HIGH"
-                )
-            )
-        }
-
-        val existingCaller = callerDao.getCallerByNormalizedNumber(normalized)
-        if (existingCaller != null) {
-            callerDao.reportCallerAsSpam(normalized, 95)
-        } else {
-            val (country, region, carrier) = resolveOrigin(phoneNumber)
-            callerDao.insertCaller(
-                CallerEntity(
-                    phoneNumber = phoneNumber,
-                    normalizedNumber = normalized,
-                    name = callerName ?: "Reported Spam",
-                    callerType = CallerType.SPAM.name,
-                    category = reason,
-                    spamScore = 95,
-                    reportsCount = 1,
-                    city = region,
-                    country = country,
-                    carrier = carrier,
-                    isBlocked = true
-                )
-            )
-        }
+    suspend fun logCall(
+        phoneNumber: String,
+        callerName: String?,
+        callType: CallType,
+        durationSeconds: Int = 0,
+        isSpam: Boolean = false,
+        spamReason: String? = null
+    ) = withContext(Dispatchers.IO) {
+        val origin = CarrierResolver.resolve(phoneNumber)
+        val entity = CallRecordEntity(
+            phoneNumber = phoneNumber,
+            callerName = callerName ?: if (origin.carrierCode in listOf("NTC", "NCELL")) origin.carrier else null,
+            callType = callType.name,
+            timestamp = System.currentTimeMillis(),
+            durationSeconds = durationSeconds,
+            isSpam = isSpam,
+            spamReason = spamReason,
+            category = origin.region
+        )
+        callRecordDao.insertRecord(entity)
     }
 
     suspend fun addCallRecord(record: CallRecord) = withContext(Dispatchers.IO) {
         callRecordDao.insertRecord(CallRecordEntity.fromDomain(record))
     }
 
-    suspend fun clearHistory() = withContext(Dispatchers.IO) {
+    suspend fun clearCallRecords() = withContext(Dispatchers.IO) {
         callRecordDao.clearAllRecords()
     }
 
-    suspend fun deleteRecord(id: Long) = withContext(Dispatchers.IO) {
+    suspend fun deleteCallRecord(id: Long) = withContext(Dispatchers.IO) {
         callRecordDao.deleteRecordById(id)
     }
 
     private fun lookupDeviceContact(phoneNumber: String): CallerInfo? {
         val clean = PhoneNumberExtractor.normalizePhoneNumber(phoneNumber)
-        if (clean.length < 5) return null
-
         val uri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI
         val projection = arrayOf(
             ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
-            ContactsContract.CommonDataKinds.Phone.NUMBER,
-            ContactsContract.CommonDataKinds.Phone.TYPE
+            ContactsContract.CommonDataKinds.Phone.NUMBER
         )
         val selection = "${ContactsContract.CommonDataKinds.Phone.NUMBER} LIKE ?"
         val selectionArgs = arrayOf("%${clean.takeLast(8)}%")
@@ -204,16 +253,16 @@ class CallerRepository(
                 if (cursor.moveToFirst()) {
                     val nameIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
                     val name = if (nameIndex >= 0) cursor.getString(nameIndex) else "Contact"
-                    val (country, region, carrier) = resolveOrigin(phoneNumber)
+                    val origin = CarrierResolver.resolve(phoneNumber)
                     return CallerInfo(
                         phoneNumber = phoneNumber,
                         normalizedNumber = clean,
                         name = name ?: "Contact",
                         callerType = CallerType.CONTACT,
                         category = "Personal Contact",
-                        city = region,
-                        country = country,
-                        carrier = carrier
+                        city = origin.region,
+                        country = origin.country,
+                        carrier = origin.carrier
                     )
                 }
             }
@@ -245,7 +294,7 @@ class CallerRepository(
                     val normalized = PhoneNumberExtractor.normalizePhoneNumber(rawNum)
 
                     if (normalized.length >= 7 && seenNumbers.add(normalized)) {
-                        val (country, region, carrier) = resolveOrigin(rawNum)
+                        val origin = CarrierResolver.resolve(rawNum)
                         entities.add(
                             CallerEntity(
                                 phoneNumber = rawNum,
@@ -253,9 +302,9 @@ class CallerRepository(
                                 name = name,
                                 callerType = CallerType.CONTACT.name,
                                 category = "Phonebook Contact",
-                                city = region,
-                                country = country,
-                                carrier = carrier
+                                city = origin.region,
+                                country = origin.country,
+                                carrier = origin.carrier
                             )
                         )
                     }
@@ -329,38 +378,5 @@ class CallerRepository(
             // Permission or system error
         }
         return@withContext entities.size
-    }
-
-    private fun resolveOrigin(phoneNumber: String): Triple<String, String, String> {
-        val clean = phoneNumber.trim()
-        return when {
-            clean.startsWith("+1") || clean.length == 10 && !clean.startsWith("+") -> {
-                Triple("US / CA", "North America", "Cellular Network")
-            }
-            clean.startsWith("+44") -> {
-                Triple("UK", "United Kingdom", "BT / Vodafone / O2")
-            }
-            clean.startsWith("+91") -> {
-                Triple("IN", "India", "Jio / Airtel / Vi")
-            }
-            clean.startsWith("+49") -> {
-                Triple("DE", "Germany", "Telekom / Vodafone")
-            }
-            clean.startsWith("+33") -> {
-                Triple("FR", "France", "Orange / SFR")
-            }
-            clean.startsWith("+61") -> {
-                Triple("AU", "Australia", "Telstra / Optus")
-            }
-            clean.startsWith("+81") -> {
-                Triple("JP", "Japan", "NTT Docomo / SoftBank")
-            }
-            clean.startsWith("+") -> {
-                Triple("Global", "International", "International Carrier")
-            }
-            else -> {
-                Triple("Local", "Mobile", "Local Network")
-            }
-        }
     }
 }

@@ -15,12 +15,14 @@ import com.example.ui.theme.QuickCallTheme
 import com.example.viewmodel.CallerViewModel
 import com.example.viewmodel.ScannerViewModel
 import com.example.viewmodel.SettingsViewModel
+import com.example.viewmodel.UpdateViewModel
 
 class MainActivity : ComponentActivity() {
 
     private val callerViewModel: CallerViewModel by viewModels()
     private val scannerViewModel: ScannerViewModel by viewModels()
     private val settingsViewModel: SettingsViewModel by viewModels()
+    private val updateViewModel: UpdateViewModel by viewModels()
 
     private var activeNavController: NavHostController? = null
 
@@ -74,6 +76,7 @@ class MainActivity : ComponentActivity() {
                     callerViewModel = callerViewModel,
                     scannerViewModel = scannerViewModel,
                     settingsViewModel = settingsViewModel,
+                    updateViewModel = updateViewModel,
                     startDestination = startDestination,
                     pendingNumber = pendingNumber,
                     pendingName = pendingName

@@ -8,8 +8,10 @@ import com.example.data.model.CallAnalytics
 import com.example.data.model.CallRecord
 import com.example.data.model.CallType
 import com.example.data.model.CallerInfo
+import com.example.data.model.ScanResult
 import com.example.data.model.SpamReport
 import com.example.data.repository.CallerRepository
+import com.example.scanner.AiSecurityAudit
 import com.example.utils.SpamAnalysis
 import com.example.utils.SpamDetector
 import com.example.utils.T9Matcher
@@ -43,6 +45,12 @@ class CallerViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _activeSpamAnalysis = MutableStateFlow<SpamAnalysis?>(null)
     val activeSpamAnalysis: StateFlow<SpamAnalysis?> = _activeSpamAnalysis.asStateFlow()
+
+    private val _aiSecurityAudit = MutableStateFlow<AiSecurityAudit?>(null)
+    val aiSecurityAudit: StateFlow<AiSecurityAudit?> = _aiSecurityAudit.asStateFlow()
+
+    private val _isAuditingAi = MutableStateFlow(false)
+    val isAuditingAi: StateFlow<Boolean> = _isAuditingAi.asStateFlow()
 
     private val _isSyncing = MutableStateFlow(false)
     val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
@@ -92,6 +100,13 @@ class CallerViewModel(application: Application) : AndroidViewModel(application) 
             initialValue = emptyList()
         )
 
+    val scanHistory: StateFlow<List<ScanResult>> = repository.scanHistory
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
     // T9 Predictive Filtered Contacts
     val t9Results: StateFlow<List<CallerInfo>> = combine(allCallers, _dialerInput) { callers, digits ->
         if (digits.isBlank()) {
@@ -114,7 +129,7 @@ class CallerViewModel(application: Application) : AndroidViewModel(application) 
         val incoming = calls.count { it.callType == CallType.INCOMING }
         val outgoing = calls.count { it.callType == CallType.OUTGOING }
         val missed = calls.count { it.callType == CallType.MISSED }
-        val minutesSaved = spam * 3 // average 3 minutes saved per avoided spam caller
+        val minutesSaved = spam * 3
         val safeRatio = if (total > 0) ((total - spam).coerceAtLeast(0).toFloat() / total) else 1.0f
         val riskPercent = if (total > 0) ((spam.toFloat() / total) * 100).toInt().coerceIn(0, 100) else 0
 
@@ -198,7 +213,23 @@ class CallerViewModel(application: Application) : AndroidViewModel(application) 
             val caller = repository.getCaller(phoneNumber)
             _activeCaller.value = caller
             _activeSpamAnalysis.value = SpamDetector.analyze(caller)
+            _aiSecurityAudit.value = null
         }
+    }
+
+    fun auditCallerWithAi(phoneNumber: String) {
+        viewModelScope.launch {
+            _isAuditingAi.value = true
+            _statusMessage.value = "Running AI Deep Security Audit..."
+            val audit = repository.auditCallerWithAi(phoneNumber)
+            _aiSecurityAudit.value = audit
+            _isAuditingAi.value = false
+            _statusMessage.value = "AI Audit complete: ${audit.riskLevel}"
+        }
+    }
+
+    fun clearAiAudit() {
+        _aiSecurityAudit.value = null
     }
 
     fun toggleFavorite(phoneNumber: String) {
@@ -225,7 +256,7 @@ class CallerViewModel(application: Application) : AndroidViewModel(application) 
 
     fun blockNumber(phoneNumber: String, block: Boolean = true) {
         viewModelScope.launch {
-            repository.blockNumber(phoneNumber, block)
+            repository.setBlockedStatus(phoneNumber, block)
             _statusMessage.value = if (block) "Number $phoneNumber added to blocked list" else "Number $phoneNumber unblocked"
             if (_activeCaller.value?.phoneNumber == phoneNumber) {
                 _activeCaller.value = _activeCaller.value?.copy(isBlocked = block)
@@ -235,9 +266,37 @@ class CallerViewModel(application: Application) : AndroidViewModel(application) 
 
     fun reportSpam(phoneNumber: String, reason: String, callerName: String? = null) {
         viewModelScope.launch {
-            repository.reportSpam(phoneNumber, reason, callerName)
+            repository.reportSpam(phoneNumber, reason, callerName, "Community Report")
             _statusMessage.value = "Reported $phoneNumber as spam: $reason"
             lookupCaller(phoneNumber)
+        }
+    }
+
+    fun saveScannedNumber(result: ScanResult) {
+        viewModelScope.launch {
+            repository.saveScannedNumber(result)
+            _statusMessage.value = "Saved ${result.formattedNumber} to Scan Vault"
+        }
+    }
+
+    fun saveScannedNumbers(results: List<ScanResult>) {
+        viewModelScope.launch {
+            repository.saveScannedNumbers(results)
+            _statusMessage.value = "Saved ${results.size} numbers to Scan Vault"
+        }
+    }
+
+    fun deleteScannedNumber(phoneNumber: String) {
+        viewModelScope.launch {
+            repository.deleteScannedNumber(phoneNumber)
+            _statusMessage.value = "Removed from Scan Vault"
+        }
+    }
+
+    fun clearScanHistory() {
+        viewModelScope.launch {
+            repository.clearScanHistory()
+            _statusMessage.value = "Scan Vault cleared"
         }
     }
 
@@ -247,13 +306,13 @@ class CallerViewModel(application: Application) : AndroidViewModel(application) 
 
     fun deleteCallRecord(id: Long) {
         viewModelScope.launch {
-            repository.deleteRecord(id)
+            repository.deleteCallRecord(id)
         }
     }
 
     fun clearAllCallHistory() {
         viewModelScope.launch {
-            repository.clearHistory()
+            repository.clearCallRecords()
             _statusMessage.value = "Call history cleared"
         }
     }

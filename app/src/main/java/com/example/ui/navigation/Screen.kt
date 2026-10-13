@@ -17,6 +17,7 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     data object Search : Screen("search", "Lookup", Icons.Default.Search)
     data object Settings : Screen("settings", "Settings", Icons.Default.Settings)
     data object CallerPopup : Screen("caller_popup", "Caller ID", Icons.Default.Call)
+    data object Update : Screen("update", "Software Update")
 
     companion object {
         val bottomNavItems: List<Screen>
