@@ -107,14 +107,19 @@ import com.example.utils.PhoneActionHelper
 import com.example.viewmodel.CallerViewModel
 import com.example.viewmodel.ScannerViewModel
 
+import com.example.viewmodel.UpdateStatus
+import com.example.viewmodel.UpdateViewModel
+
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun HomeScreen(
     callerViewModel: CallerViewModel,
     scannerViewModel: ScannerViewModel,
+    updateViewModel: UpdateViewModel? = null,
     onNavigateToScanner: (ScanSource) -> Unit,
     onNavigateToCallerPopup: (String, String) -> Unit,
     onNavigateToRecents: () -> Unit,
+    onNavigateToUpdate: () -> Unit = {},
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
@@ -127,6 +132,13 @@ fun HomeScreen(
     val t9Results by callerViewModel.t9Results.collectAsStateWithLifecycle()
     val isSyncing by callerViewModel.isSyncing.collectAsStateWithLifecycle()
     val statusMessage by callerViewModel.statusMessage.collectAsStateWithLifecycle()
+
+    val updateUiState = updateViewModel?.uiState?.collectAsStateWithLifecycle()?.value
+    var isUpdateBannerDismissed by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        updateViewModel?.checkForUpdates(silent = true)
+    }
 
     var showQuickDialerDialog by remember { mutableStateOf(false) }
 
@@ -205,6 +217,18 @@ fun HomeScreen(
                         }
                     }
                 )
+            }
+
+            // Self-Update Notice Banner when v1.0.2 or newer release is discovered
+            val currentUpdateStatus = updateUiState?.status
+            if (!isUpdateBannerDismissed && currentUpdateStatus is UpdateStatus.UpdateAvailable) {
+                item(key = "update_available_banner", contentType = "update_banner") {
+                    HomeUpdateBanner(
+                        versionName = currentUpdateStatus.updateInfo.versionName,
+                        onUpdateClick = onNavigateToUpdate,
+                        onDismiss = { isUpdateBannerDismissed = true }
+                    )
+                }
             }
 
             // 2. Permission Banner if phone call log / contacts not granted
@@ -972,6 +996,95 @@ private fun HomeCallRecordItem(
                         modifier = Modifier.size(18.dp)
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun HomeUpdateBanner(
+    versionName: String,
+    onUpdateClick: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    NeonGlassCard(
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag("home_update_banner")
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(34.dp)
+                            .background(NeonGreen.copy(alpha = 0.2f), CircleShape)
+                            .border(1.dp, NeonGreen, CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Sync,
+                            contentDescription = null,
+                            tint = NeonGreen,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "UPDATE AVAILABLE: $versionName",
+                            color = NeonGreen,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 0.6.sp
+                        )
+                        Text(
+                            text = "Speed templates, batch scanner & fraud radar improvements",
+                            color = TextSecondary,
+                            fontSize = 11.sp,
+                            maxLines = 1
+                        )
+                    }
+                }
+
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Dismiss",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            NeonPrimaryButton(
+                onClick = onUpdateClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp)
+            ) {
+                Text(
+                    text = "Review & Install Update ($versionName) →",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp
+                )
             }
         }
     }

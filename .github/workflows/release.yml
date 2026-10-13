@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Release Tag (e.g. v1.0.1)'
+        description: 'Release Tag (e.g. v1.0.2)'
         required: false
-        default: 'v1.0.1'
+        default: 'v1.0.2'
 
 permissions:
   contents: write
@@ -66,11 +66,14 @@ jobs:
 
       - name: Build Android Release APK
         run: |
+          BUILD_VER_NAME=$(grep -o '"versionName": *"[^"]*"' version.json | head -n 1 | cut -d'"' -f4)
+          BUILD_VER_CODE=$(grep -o '"versionCode": *[0-9]*' version.json | head -n 1 | awk '{print $2}')
+          echo "Building APK for Version Name: ${BUILD_VER_NAME:-1.0.2} (code: ${BUILD_VER_CODE:-3})"
           if [ -f "./gradlew" ]; then
             chmod +x ./gradlew
-            ./gradlew :app:assembleRelease --stacktrace
+            ./gradlew :app:assembleRelease -PversionCode=${BUILD_VER_CODE:-3} -PversionName=${BUILD_VER_NAME:-"1.0.2"} --stacktrace
           else
-            gradle :app:assembleRelease --stacktrace
+            gradle :app:assembleRelease -PversionCode=${BUILD_VER_CODE:-3} -PversionName=${BUILD_VER_NAME:-"1.0.2"} --stacktrace
           fi
 
       - name: Verify APK Generation
@@ -94,6 +97,17 @@ jobs:
           echo "APK_SHA256=$SHA256_HASH" >> $GITHUB_ENV
           echo "APK_SIZE=$APK_SIZE" >> $GITHUB_ENV
 
+          # Inject real SHA256 and size into version.json for release distribution
+          python3 -c "
+import json
+with open('version.json', 'r') as f:
+    data = json.load(f)
+data['sha256'] = '$SHA256_HASH'
+data['fileSize'] = int('$APK_SIZE')
+with open('version.json', 'w') as f:
+    json.dump(data, f, indent=2)
+"
+
       - name: Determine Release Tag
         id: release_info
         run: |
@@ -101,7 +115,7 @@ jobs:
             TAG="${{ inputs.tag_name }}"
             if [ -z "$TAG" ]; then
               VERSION_NAME=$(grep -o '"versionName": *"[^"]*"' version.json | head -n 1 | cut -d'"' -f4)
-              TAG="v${VERSION_NAME:-1.0.1}"
+              TAG="v${VERSION_NAME:-1.0.2}"
             fi
           else
             TAG="${{ github.ref_name }}"

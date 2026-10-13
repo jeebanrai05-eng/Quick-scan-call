@@ -9,14 +9,16 @@ object PhoneNumberExtractor {
     // Regex pattern matching global phone numbers:
     // +?([0-9]{1,4})?[-. ]?(\(?[0-9]{2,4}\)?)?[-. ]?[0-9]{3,4}[-. ]?[0-9]{3,4}
     private val PHONE_PATTERNS = listOf(
-        // International with country code (+1, +44, +91, etc.)
+        // International with bracketed zero, e.g. +44 (0) 20 7946 0958
+        Pattern.compile("""(?:\+\d{1,3}[-.\s]?)?\(0\)[-.\s]?\d{2,4}[-.\s]?\d{3,4}[-.\s]?\d{3,4}"""),
+        // International with country code (+1, +44, +91, etc.) and area codes
         Pattern.compile("""(?:\+?\d{1,4}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}"""),
         // Standard 10-12 digits with separators
         Pattern.compile("""\b\d{3,5}[-.\s]\d{3,4}[-.\s]\d{3,4}\b"""),
         // Continuous 10-13 digits
         Pattern.compile("""\b(?:\+?\d{10,13})\b"""),
-        // Toll-free / customer care (1800 / 800)
-        Pattern.compile("""\b(?:1800|800|888|877|866)[-.\s]?\d{3}[-.\s]?\d{4}\b""")
+        // Toll-free / customer care (1800 / 800 / 888 / 877 / 866 / 0800)
+        Pattern.compile("""\b(?:1800|800|888|877|866|0800)[-.\s]?\d{3}[-.\s]?\d{4}\b""")
     )
 
     private val LABEL_KEYWORDS = mapOf(
@@ -111,6 +113,12 @@ object PhoneNumberExtractor {
             }
             digits.length == 12 && digits.startsWith("91") -> {
                 "+91 ${digits.substring(2, 7)} ${digits.substring(7)}"
+            }
+            digits.length == 12 && digits.startsWith("44") -> {
+                "+44 ${digits.substring(2, 6)} ${digits.substring(6)}"
+            }
+            digits.length in 7..9 -> {
+                "${digits.substring(0, 3)}-${digits.substring(3)}"
             }
             else -> raw.trim()
         }

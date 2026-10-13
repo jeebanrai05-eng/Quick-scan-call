@@ -43,27 +43,26 @@ This application includes a complete, secure self-updating architecture integrat
 2. Go to: `https://github.com/jeebanrai05-eng/Quick-scan-call/actions`.
 3. Tap **Build & Release Android APK**.
 4. Tap the **Run workflow** dropdown button.
-5. Select the `main` branch, enter the release tag (e.g. `v1.0.1`), and tap **Run workflow**.
+5. Select the `main` branch, enter the release tag (e.g. `v1.0.2`), and tap **Run workflow**.
 
 #### Option B: Automatic Push Trigger via Git Tag
-1. Update `version.json` in the repository:
+1. `version.json` in the repository is configured for `v1.0.2`:
    ```json
    {
-     "versionCode": 2,
-     "versionName": "1.0.1",
-     "apkUrl": "https://github.com/jeebanrai05-eng/Quick-scan-call/releases/download/v1.0.1/app-release.apk",
-     "releaseNotes": "• Enhanced OCR scanner\n• Bug fixes and battery optimizations",
+     "versionCode": 3,
+     "versionName": "1.0.2",
+     "apkUrl": "https://github.com/jeebanrai05-eng/Quick-scan-call/releases/download/v1.0.2/app-release.apk",
+     "releaseNotes": "• Smart Speed SMS & WhatsApp Template Builder: 1-tap fast replies for scanned business numbers\n• Batch Numbers Vault: Copy all, organize, and export scanned numbers\n• In-App Self-Update Dashboard Banner with instant background discovery\n• Fixed OCR parsing for international area codes and bracketed country prefixes (+44 (0)20, 1800/800 toll-free)\n• Enhanced 120 FPS AMOLED Dark theme with battery optimizations",
      "minimumSupportedVersion": 1
    }
    ```
-2. Commit and push the updated `version.json` to `main`.
-3. Create and push a version tag:
+2. Create and push a version tag to trigger GitHub Actions:
    ```bash
-   git tag v1.0.1
-   git push origin v1.0.1
+   git tag v1.0.2
+   git push origin v1.0.2
    ```
-4. GitHub Actions will trigger automatically, build the release APK, and publish the release asset under GitHub Releases!
-5. All installed apps checking for updates will discover version `1.0.1` and offer 1-tap download & install.
+3. GitHub Actions will trigger automatically, build the release APK with JDK 17, compute its SHA-256 fingerprint, and publish the release asset under GitHub Releases!
+4. All installed apps checking for updates will discover version `1.0.2` and offer 1-tap download & install via the Home Screen update banner or Settings updater.
 
 ---
 

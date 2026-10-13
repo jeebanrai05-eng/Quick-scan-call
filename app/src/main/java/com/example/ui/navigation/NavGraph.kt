@@ -144,6 +144,7 @@ fun AppNavGraph(
                 HomeScreen(
                     callerViewModel = callerViewModel,
                     scannerViewModel = scannerViewModel,
+                    updateViewModel = updateViewModel,
                     onNavigateToScanner = { source ->
                         scannerViewModel.setScanSource(source)
                         navController.navigate(Screen.Scanner.route) {
@@ -155,6 +156,11 @@ fun AppNavGraph(
                     },
                     onNavigateToRecents = {
                         navController.navigate(Screen.RecentCalls.route) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onNavigateToUpdate = {
+                        navController.navigate(Screen.Update.route) {
                             launchSingleTop = true
                         }
                     }

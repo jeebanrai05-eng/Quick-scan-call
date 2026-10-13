@@ -73,6 +73,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val uiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
+    val updateUiState = updateViewModel?.uiState?.collectAsStateWithLifecycle()?.value
 
     LaunchedEffect(Unit) {
         settingsViewModel.refreshPermissionStates()
@@ -364,7 +365,10 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f, fill = false)
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.Security,
                                 contentDescription = null,
@@ -379,10 +383,28 @@ fun SettingsScreen(
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold
                                 )
+                                val currentVer = updateUiState?.currentVersionName ?: "1.0.1"
                                 Text(
-                                    text = "Automated release checks & secure in-place updates",
+                                    text = "Installed: v$currentVer • Automated release checks",
                                     color = TextMuted,
                                     fontSize = 11.sp
+                                )
+                            }
+                        }
+
+                        val status = updateUiState?.status
+                        if (status is com.example.viewmodel.UpdateStatus.UpdateAvailable) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = NeonGreen.copy(alpha = 0.2f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, NeonGreen)
+                            ) {
+                                Text(
+                                    text = "v${status.updateInfo.versionName} Available!",
+                                    color = NeonGreen,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                 )
                             }
                         }
@@ -418,6 +440,8 @@ fun SettingsScreen(
                     modifier = Modifier.padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    val verName = updateUiState?.currentVersionName ?: "1.0.1"
+                    val verCode = updateUiState?.currentVersionCode ?: 2L
                     Text(
                         text = "Quick Call Scan & Detect Caller",
                         color = TextPrimary,
@@ -425,7 +449,7 @@ fun SettingsScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "v1.0.0 (build #1) • ML Kit OCR • Room DB • AMOLED Dark",
+                        text = "v$verName (build #$verCode) • ML Kit OCR • Room DB • AMOLED Dark",
                         color = TextMuted,
                         fontSize = 11.sp
                     )

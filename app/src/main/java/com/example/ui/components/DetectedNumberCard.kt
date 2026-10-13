@@ -33,6 +33,12 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.data.model.CallerType
 import com.example.data.model.ScanResult
 import com.example.ui.theme.CyberCyan
@@ -53,6 +59,26 @@ fun DetectedNumberCard(
     val context = LocalContext.current
     val caller = result.callerInfo
     val isSpam = caller?.isSpam == true
+    var showQuickMessageSheet by remember { mutableStateOf(false) }
+
+    if (showQuickMessageSheet) {
+        Dialog(
+            onDismissRequest = { showQuickMessageSheet = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 24.dp)
+            ) {
+                QuickMessageSheet(
+                    phoneNumber = result.phoneNumber,
+                    callerName = caller?.name,
+                    onDismiss = { showQuickMessageSheet = false }
+                )
+            }
+        }
+    }
 
     NeonGlassCard(
         modifier = modifier
@@ -193,7 +219,7 @@ fun DetectedNumberCard(
                 // WhatsApp Shortcut
                 Surface(
                     onClick = {
-                        PhoneActionHelper.openWhatsApp(context, result.phoneNumber)
+                        showQuickMessageSheet = true
                     },
                     shape = RoundedCornerShape(12.dp),
                     color = Color(0xFF25D366).copy(alpha = 0.2f),
@@ -209,10 +235,10 @@ fun DetectedNumberCard(
 
                 Spacer(modifier = Modifier.width(6.dp))
 
-                // SMS Shortcut
+                // Speed SMS Shortcut
                 IconButton(
                     onClick = {
-                        PhoneActionHelper.sendSms(context, result.phoneNumber)
+                        showQuickMessageSheet = true
                     },
                     modifier = Modifier
                         .size(44.dp)
@@ -221,7 +247,7 @@ fun DetectedNumberCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Message,
-                        contentDescription = "Send SMS",
+                        contentDescription = "Send Speed SMS / Message",
                         tint = CyberCyan,
                         modifier = Modifier.size(17.dp)
                     )

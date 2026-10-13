@@ -22,11 +22,12 @@ object PhoneActionHelper {
         }
     }
 
-    fun openWhatsApp(context: Context, phoneNumber: String) {
+    fun openWhatsApp(context: Context, phoneNumber: String, message: String? = null) {
         try {
             // Clean phone number for WhatsApp: only country code and digits
             val cleanNumber = phoneNumber.replace(Regex("[^0-9]"), "")
-            val url = "https://api.whatsapp.com/send?phone=$cleanNumber"
+            val textParam = if (!message.isNullOrBlank()) "&text=${Uri.encode(message)}" else ""
+            val url = "https://api.whatsapp.com/send?phone=$cleanNumber$textParam"
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 data = Uri.parse(url)
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK

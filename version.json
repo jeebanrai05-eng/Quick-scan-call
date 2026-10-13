@@ -1,9 +1,9 @@
 {
-  "versionCode": 2,
-  "versionName": "1.0.1",
-  "apkUrl": "https://github.com/jeebanrai05-eng/Quick-scan-call/releases/download/v1.0.1/app-release.apk",
-  "releaseNotes": "• Upgraded AI Caller ID & Spam Shield engine\n• Enhanced live OCR scanning accuracy with automated edge detection\n• Complete in-app self-updater with cryptographic package signature verification\n• Battery optimizations and dark AMOLED UI polish",
+  "versionCode": 3,
+  "versionName": "1.0.2",
+  "apkUrl": "https://github.com/jeebanrai05-eng/Quick-scan-call/releases/download/v1.0.2/app-release.apk",
+  "releaseNotes": "• Smart Speed SMS & WhatsApp Template Builder: 1-tap fast replies for scanned business numbers\n• Batch Numbers Vault: Copy all, organize, and export scanned numbers\n• In-App Self-Update Dashboard Banner with instant background discovery\n• Fixed OCR parsing for international area codes and bracketed country prefixes (+44 (0)20, 1800/800 toll-free)\n• Enhanced 120 FPS AMOLED Dark theme with battery optimizations",
   "minimumSupportedVersion": 1,
-  "fileSize": 61306015,
-  "sha256": "4abc5480884caba5614a5635fc3cff85f0b781eeba0f66ddda0650f0dd7a2bbd"
+  "fileSize": 61322399,
+  "sha256": "161c8079454684de6f44d80a9107917d4b81ac9bd6fc0fd4746b2ef08be5d373"
 }
