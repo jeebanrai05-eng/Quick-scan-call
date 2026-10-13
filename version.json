@@ -1,9 +1,9 @@
 {
   "versionCode": 2,
   "versionName": "1.0.1",
-  "apkUrl": "https://github.com/jeebanrai05/quickcallscan-detectcaller/releases/download/v1.0.1/app-release.apk",
+  "apkUrl": "https://github.com/jeebanrai05-eng/Quick-scan-call/releases/download/v1.0.1/app-release.apk",
   "releaseNotes": "• Upgraded AI Caller ID & Spam Shield engine\n• Enhanced live OCR scanning accuracy with automated edge detection\n• Complete in-app self-updater with cryptographic package signature verification\n• Battery optimizations and dark AMOLED UI polish",
   "minimumSupportedVersion": 1,
-  "fileSize": 0,
-  "sha256": ""
+  "fileSize": 61306015,
+  "sha256": "4abc5480884caba5614a5635fc3cff85f0b781eeba0f66ddda0650f0dd7a2bbd"
 }

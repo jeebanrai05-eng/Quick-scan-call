@@ -46,9 +46,9 @@ class UpdateRepository(
 
     companion object {
         const val DEFAULT_VERSION_URL =
-            "https://raw.githubusercontent.com/jeebanrai05/quickcallscan-detectcaller/main/version.json"
+            "https://raw.githubusercontent.com/jeebanrai05-eng/Quick-scan-call/main/version.json"
         const val GITHUB_PAGES_URL =
-            "https://jeebanrai05.github.io/quickcallscan-detectcaller/version.json"
+            "https://jeebanrai05-eng.github.io/Quick-scan-call/version.json"
     }
 
     /**

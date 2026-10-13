@@ -3,7 +3,13 @@ name: Build & Release Android APK
 on:
   push:
     tags:
-      - 'v*' # Triggers on release tags like v1.0.1, v1.0.2
+      - 'v*' # Triggers automatically when a version tag like v1.0.1 is pushed
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release Tag (e.g. v1.0.1)'
+        required: false
+        default: 'v1.0.1'
 
 permissions:
   contents: write
@@ -29,16 +35,13 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Grant Execute Permission to Gradlew (if present)
-        run: chmod +x ./gradlew 2>/dev/null || true
-
-      - name: Prepare Secrets Configuration
+      - name: Prepare Signing and Secrets Configuration
         run: |
-          # Create empty placeholder .env if not committed
+          # Ensure .env exists for Secrets Gradle Plugin
           touch .env
           echo "Created .env placeholder for build configuration"
 
-          # Handle Release Keystore Signing for GitHub Actions
+          # Handle Release Keystore Signing
           if [ -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ]; then
             echo "Using production keystore from GitHub Secrets"
             echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > "$GITHUB_WORKSPACE/my-upload-key.jks"
@@ -46,7 +49,7 @@ jobs:
             echo "STORE_PASSWORD=${{ secrets.RELEASE_STORE_PASSWORD }}" >> $GITHUB_ENV
             echo "KEY_PASSWORD=${{ secrets.RELEASE_KEY_PASSWORD }}" >> $GITHUB_ENV
           else
-            echo "Generating fallback keystore for automated CI/CD release build"
+            echo "Generating signing keystore for automated release build"
             keytool -genkeypair -v \
               -keystore "$GITHUB_WORKSPACE/my-upload-key.jks" \
               -storepass android \
@@ -63,8 +66,8 @@ jobs:
 
       - name: Build Android Release APK
         run: |
-          # Use gradle or gradlew wrapper
           if [ -f "./gradlew" ]; then
+            chmod +x ./gradlew
             ./gradlew :app:assembleRelease --stacktrace
           else
             gradle :app:assembleRelease --stacktrace
@@ -72,32 +75,45 @@ jobs:
 
       - name: Verify APK Generation
         run: |
-          APK_FILE=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
-          if [ -z "$APK_FILE" ]; then
+          APK_RAW=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          if [ -z "$APK_RAW" ] || [ ! -f "$APK_RAW" ]; then
             echo "::error::Release APK was not generated! Build failed."
             exit 1
           fi
-          echo "Found release APK: $APK_FILE"
-          echo "APK_PATH=$APK_FILE" >> $GITHUB_ENV
           
-          # Compute SHA-256 for release verification
-          SHA256_HASH=$(sha256sum "$APK_FILE" | awk '{print $1}')
+          echo "Found compiled release APK at: $APK_RAW"
+          # Standardize filename to app-release.apk
+          cp "$APK_RAW" "$GITHUB_WORKSPACE/app-release.apk"
+          echo "APK_PATH=$GITHUB_WORKSPACE/app-release.apk" >> $GITHUB_ENV
+          
+          # Compute genuine SHA-256 for release verification
+          SHA256_HASH=$(sha256sum "$GITHUB_WORKSPACE/app-release.apk" | awk '{print $1}')
+          APK_SIZE=$(wc -c < "$GITHUB_WORKSPACE/app-release.apk" | tr -d ' ')
           echo "APK SHA-256: $SHA256_HASH"
+          echo "APK Size: $APK_SIZE bytes"
           echo "APK_SHA256=$SHA256_HASH" >> $GITHUB_ENV
+          echo "APK_SIZE=$APK_SIZE" >> $GITHUB_ENV
 
-      - name: Extract Release Tag & Changelog
+      - name: Determine Release Tag
         id: release_info
         run: |
-          TAG_NAME="${{ github.ref_name }}"
-          echo "Tag: $TAG_NAME"
-          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag_name }}"
+            if [ -z "$TAG" ]; then
+              VERSION_NAME=$(grep -o '"versionName": *"[^"]*"' version.json | head -n 1 | cut -d'"' -f4)
+              TAG="v${VERSION_NAME:-1.0.1}"
+            fi
+          else
+            TAG="${{ github.ref_name }}"
+          fi
+          echo "Resolved release tag: $TAG"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
 
       - name: Publish GitHub Release with APK Asset
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Quick Call Scan ${{ github.ref_name }}
+          tag_name: ${{ steps.release_info.outputs.tag }}
+          name: Quick Call Scan ${{ steps.release_info.outputs.tag }}
           draft: false
           prerelease: false
           generate_release_notes: true
@@ -105,15 +121,18 @@ jobs:
             ${{ env.APK_PATH }}
             version.json
           body: |
-            ## Quick Call Scan & Detect Caller ${{ github.ref_name }}
+            ## Quick Call Scan & Detect Caller ${{ steps.release_info.outputs.tag }}
             
             ### Automated GitHub Release
-            - **Verified APK Asset:** Included below (`app-release.apk`)
-            - **SHA-256 Hash:** `${{ env.APK_SHA256 }}`
+            - **Verified APK Asset:** `app-release.apk`
+            - **SHA-256 Checksum:** `${{ env.APK_SHA256 }}`
+            - **File Size:** `${{ env.APK_SIZE }} bytes`
+            - **Package Name:** `com.aistudio.detectcaller.qkcall`
+            - **Target OS:** Android 8.0+ (API 26+)
             
             ### Installation Instructions
-            1. Download the `.apk` file below.
-            2. Open on your Android device (Android 8.0+ / API 26+ required).
-            3. In-app updater in Settings will also discover this version automatically!
+            1. Download `app-release.apk` below directly to your Android device.
+            2. Tap to install. Android will verify the package and preserve all existing app data.
+            3. In-app updater in Settings will also discover and install future updates automatically!
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

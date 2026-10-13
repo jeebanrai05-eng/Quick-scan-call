@@ -33,17 +33,25 @@ This application includes a complete, secure self-updating architecture integrat
 
 ### Step 1: Connect AI Studio to Your GitHub Repository
 1. In the AI Studio top/settings bar, open the **Export / Push to GitHub** option.
-2. Select your repository (or create/link `jeebanrai05/quickcallscan-detectcaller`).
+2. Select your repository: `jeebanrai05-eng/Quick-scan-call`.
 3. Commit and push the project files to the `main` branch.
 
-### Step 2: Triggering an Automatic Release Build
-When you are ready to ship an update:
-1. Update `version.json` in the root repository:
+### Step 2: Running the Release Workflow
+
+#### Option A: Manual Trigger from your Android Phone or Browser
+1. Open GitHub on your Android phone browser or GitHub Mobile app.
+2. Go to: `https://github.com/jeebanrai05-eng/Quick-scan-call/actions`.
+3. Tap **Build & Release Android APK**.
+4. Tap the **Run workflow** dropdown button.
+5. Select the `main` branch, enter the release tag (e.g. `v1.0.1`), and tap **Run workflow**.
+
+#### Option B: Automatic Push Trigger via Git Tag
+1. Update `version.json` in the repository:
    ```json
    {
      "versionCode": 2,
      "versionName": "1.0.1",
-     "apkUrl": "https://github.com/jeebanrai05/quickcallscan-detectcaller/releases/download/v1.0.1/app-release.apk",
+     "apkUrl": "https://github.com/jeebanrai05-eng/Quick-scan-call/releases/download/v1.0.1/app-release.apk",
      "releaseNotes": "• Enhanced OCR scanner\n• Bug fixes and battery optimizations",
      "minimumSupportedVersion": 1
    }
