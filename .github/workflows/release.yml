@@ -46,22 +46,18 @@ jobs:
             echo "Using production keystore from GitHub Secrets"
             echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > "$GITHUB_WORKSPACE/my-upload-key.jks"
             echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/my-upload-key.jks" >> $GITHUB_ENV
-            echo "STORE_PASSWORD=${{ secrets.RELEASE_STORE_PASSWORD }}" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=${{ secrets.RELEASE_KEY_PASSWORD }}" >> $GITHUB_ENV
+            echo "STORE_PASSWORD=${{ secrets.RELEASE_STORE_PASSWORD || secrets.RELEASE_KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
+            echo "KEY_ALIAS=${{ secrets.RELEASE_KEY_ALIAS || 'upload' }}" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=${{ secrets.RELEASE_KEY_PASSWORD || secrets.RELEASE_STORE_PASSWORD || secrets.RELEASE_KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
           else
-            echo "Generating signing keystore for automated release build"
-            keytool -genkeypair -v \
-              -keystore "$GITHUB_WORKSPACE/my-upload-key.jks" \
-              -storepass android \
-              -alias upload \
-              -keypass android \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -dname "CN=QuickCallScan, OU=Android, O=QuickCallScan, L=London, ST=London, C=UK"
-            echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/my-upload-key.jks" >> $GITHUB_ENV
-            echo "STORE_PASSWORD=android" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=android" >> $GITHUB_ENV
+            echo "::error::CRITICAL: RELEASE_KEYSTORE_BASE64 secret is not configured in GitHub Secrets!"
+            echo "::error::Generating a new ephemeral key is strictly forbidden because it causes 'Signing certificate mismatch' and breaks in-app updates for all existing installations."
+            echo "::error::Please configure the original release signing keystore in GitHub repository Secrets:"
+            echo "::error::  - RELEASE_KEYSTORE_BASE64: Base64-encoded original .jks / .keystore file"
+            echo "::error::  - RELEASE_STORE_PASSWORD: Password for the keystore"
+            echo "::error::  - RELEASE_KEY_ALIAS: Alias name of the original signing key (e.g. upload)"
+            echo "::error::  - RELEASE_KEY_PASSWORD: Password for the signing key"
+            exit 1
           fi
 
       - name: Build Android Release APK
@@ -141,7 +137,7 @@ jobs:
             - **Verified APK Asset:** `app-release.apk`
             - **SHA-256 Checksum:** `${{ env.APK_SHA256 }}`
             - **File Size:** `${{ env.APK_SIZE }} bytes`
-            - **Package Name:** `com.aistudio.detectcaller.qkcall`
+            - **Package Name:** `com.aistudio.detectcaller.akcall`
             - **Target OS:** Android 8.0+ (API 26+)
             
             ### Installation Instructions

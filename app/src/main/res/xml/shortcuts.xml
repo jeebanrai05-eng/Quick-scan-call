@@ -8,7 +8,7 @@
         android:shortcutLongLabel="@string/shortcut_quick_scan_long">
         <intent
             android:action="com.example.ACTION_QUICK_SCAN"
-            android:targetPackage="com.aistudio.detectcaller.qkcall"
+            android:targetPackage="com.aistudio.detectcaller.akcall"
             android:targetClass="com.example.MainActivity">
             <extra
                 android:name="EXTRA_NAV_TARGET"
@@ -23,7 +23,7 @@
         android:shortcutLongLabel="@string/shortcut_t9_dialer_long">
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetPackage="com.aistudio.detectcaller.qkcall"
+            android:targetPackage="com.aistudio.detectcaller.akcall"
             android:targetClass="com.example.MainActivity">
             <extra
                 android:name="EXTRA_NAV_TARGET"
