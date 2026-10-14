@@ -73,4 +73,25 @@ class ExampleRobolectricTest {
     assertEquals(SpamRiskTier.SEVERE_FRAUD, analysis.tier)
     assertTrue(analysis.shouldAutoBlock)
   }
+
+  @Test
+  fun testApkVerifierRejectsNonExistentFile() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val nonExistent = java.io.File("/tmp/non_existent.apk")
+    val result = com.example.utils.ApkVerifier.verifyApk(context, nonExistent)
+    assertTrue("Should fail on missing APK file", result is com.example.utils.ApkVerifier.VerificationResult.Error)
+  }
+
+  @Test
+  fun testApkVerifierIntegrityChecksumMismatch() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val tempFile = java.io.File.createTempFile("test_apk", ".apk")
+    tempFile.writeText("fake apk binary content")
+    try {
+      val result = com.example.utils.ApkVerifier.verifyApk(context, tempFile, "0000000000000000000000000000000000000000000000000000000000000000")
+      assertTrue("Should fail on archive parse or checksum", result is com.example.utils.ApkVerifier.VerificationResult.Error)
+    } finally {
+      tempFile.delete()
+    }
+  }
 }

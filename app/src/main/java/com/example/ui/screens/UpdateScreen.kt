@@ -770,7 +770,7 @@ private fun ErrorStatusCard(
             )
             Spacer(modifier = Modifier.height(10.dp))
             Text(
-                text = "Update Check Failed",
+                text = if (error.contains("certificate mismatch", ignoreCase = true)) "Security Verification Failed" else "Update Check Failed",
                 color = TextPrimary,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
@@ -782,6 +782,32 @@ private fun ErrorStatusCard(
                 fontSize = 12.sp,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
+
+            if (error.contains("certificate mismatch", ignoreCase = true)) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = SpamRed.copy(alpha = 0.12f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, SpamRed.copy(alpha = 0.35f))
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "🛡️ Android OS Security Policy:",
+                            color = SpamRed,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Android strictly requires the update APK to be signed with the exact same cryptographic key as the currently installed application. If the original signing keystore was lost or recreated, in-place self-update is cryptographically blocked by the OS. A clean reinstall (uninstalling the previous version) is required to adopt the new key.",
+                            color = TextSecondary,
+                            fontSize = 11.sp,
+                            lineHeight = 15.sp
+                        )
+                    }
+                }
+            }
+
             if (canRetry) {
                 Spacer(modifier = Modifier.height(16.dp))
                 NeonOutlinedButton(

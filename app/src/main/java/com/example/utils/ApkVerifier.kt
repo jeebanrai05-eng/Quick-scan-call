@@ -47,6 +47,12 @@ object ApkVerifier {
                 apkFile.absolutePath,
                 PackageManager.PackageInfoFlags.of(PackageManager.GET_SIGNING_CERTIFICATES.toLong())
             )
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            @Suppress("DEPRECATION")
+            pm.getPackageArchiveInfo(
+                apkFile.absolutePath,
+                PackageManager.GET_SIGNING_CERTIFICATES
+            )
         } else {
             @Suppress("DEPRECATION")
             pm.getPackageArchiveInfo(
@@ -90,21 +96,24 @@ object ApkVerifier {
             )
         }
 
-        // 3. Verify Signature / Signing Certificate
+        // 3. Cryptographic Signing Certificate Verification (Strict signature match)
         val signatureMatch = verifySignaturesMatch(context, archiveInfo)
         if (!signatureMatch) {
+            val currentFps = getSignaturesForPackage(pm, currentPackageName).map { it.sha256Fingerprint() }
+            val apkFps = getSignaturesFromPackageInfo(archiveInfo).map { it.sha256Fingerprint() }
             return VerificationResult.Error(
-                "Signing certificate mismatch! The update APK is signed with a different key than this app."
+                "Security verification failed: Signing certificate mismatch!\n" +
+                "Installed app certificate: ${currentFps.joinToString(", ")}\n" +
+                "Downloaded APK certificate: ${apkFps.joinToString(", ")}"
             )
         }
 
-        // 4. SHA-256 integrity inspection
+        // 4. APK File Checksum Verification (Strictly separate from signing certificate)
         if (!expectedSha256.isNullOrBlank()) {
             val fileHash = calculateSha256(apkFile)
             if (!fileHash.equals(expectedSha256.trim(), ignoreCase = true)) {
-                Log.w(
-                    TAG,
-                    "SHA-256 hash differs from version.json (Expected: $expectedSha256, Computed: $fileHash), but cryptographic signing certificate and package identity are fully verified."
+                return VerificationResult.Error(
+                    "APK file integrity check failed! Expected SHA-256: $expectedSha256, Computed: $fileHash"
                 )
             }
         }
@@ -138,26 +147,45 @@ object ApkVerifier {
         }
     }
 
+    fun getInstalledSigningFingerprints(context: Context): List<String> {
+        return try {
+            getSignaturesForPackage(context.packageManager, context.packageName)
+                .map { it.sha256Fingerprint() }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
     private fun getSignaturesForPackage(pm: PackageManager, packageName: String): List<ByteArray> {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val pkgInfo = pm.getPackageInfo(
                 packageName,
                 PackageManager.PackageInfoFlags.of(PackageManager.GET_SIGNING_CERTIFICATES.toLong())
             )
-            val signingInfo = pkgInfo.signingInfo ?: return emptyList()
-            if (signingInfo.hasMultipleSigners()) {
-                signingInfo.apkContentsSigners.map { it.toByteArray() }
+            val signingInfo = pkgInfo.signingInfo
+            if (signingInfo != null) {
+                if (signingInfo.hasMultipleSigners()) {
+                    signingInfo.apkContentsSigners.map { it.toByteArray() }
+                } else {
+                    signingInfo.signingCertificateHistory.map { it.toByteArray() }
+                }
             } else {
-                signingInfo.signingCertificateHistory.map { it.toByteArray() }
+                @Suppress("DEPRECATION")
+                pkgInfo.signatures?.map { it.toByteArray() } ?: emptyList()
             }
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             @Suppress("DEPRECATION")
             val pkgInfo = pm.getPackageInfo(packageName, PackageManager.GET_SIGNING_CERTIFICATES)
-            val signingInfo = pkgInfo.signingInfo ?: return emptyList()
-            if (signingInfo.hasMultipleSigners()) {
-                signingInfo.apkContentsSigners.map { it.toByteArray() }
+            val signingInfo = pkgInfo.signingInfo
+            if (signingInfo != null) {
+                if (signingInfo.hasMultipleSigners()) {
+                    signingInfo.apkContentsSigners.map { it.toByteArray() }
+                } else {
+                    signingInfo.signingCertificateHistory.map { it.toByteArray() }
+                }
             } else {
-                signingInfo.signingCertificateHistory.map { it.toByteArray() }
+                @Suppress("DEPRECATION")
+                pkgInfo.signatures?.map { it.toByteArray() } ?: emptyList()
             }
         } else {
             @Suppress("DEPRECATION")
@@ -169,11 +197,16 @@ object ApkVerifier {
 
     private fun getSignaturesFromPackageInfo(apkInfo: PackageInfo): List<ByteArray> {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            val signingInfo = apkInfo.signingInfo ?: return emptyList()
-            if (signingInfo.hasMultipleSigners()) {
-                signingInfo.apkContentsSigners.map { it.toByteArray() }
+            val signingInfo = apkInfo.signingInfo
+            if (signingInfo != null) {
+                if (signingInfo.hasMultipleSigners()) {
+                    signingInfo.apkContentsSigners.map { it.toByteArray() }
+                } else {
+                    signingInfo.signingCertificateHistory.map { it.toByteArray() }
+                }
             } else {
-                signingInfo.signingCertificateHistory.map { it.toByteArray() }
+                @Suppress("DEPRECATION")
+                apkInfo.signatures?.map { it.toByteArray() } ?: emptyList()
             }
         } else {
             @Suppress("DEPRECATION")
