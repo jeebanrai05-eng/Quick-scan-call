@@ -16,19 +16,21 @@ android {
     applicationId = "com.aistudio.detectcaller.akcall"
     minSdk = 26
     targetSdk = 35
-    versionCode = project.findProperty("versionCode")?.toString()?.toIntOrNull() ?: 2
-    versionName = project.findProperty("versionName")?.toString() ?: "1.0.1"
+    versionCode = project.findProperty("versionCode")?.toString()?.toIntOrNull() ?: 4
+    versionName = project.findProperty("versionName")?.toString() ?: "1.0.3"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
   signingConfigs {
     create("release") {
-      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
+      val releaseKeystore = file("${rootDir}/release.keystore")
+      val defaultPath = if (releaseKeystore.exists()) releaseKeystore.absolutePath else "${rootDir}/my-upload-key.jks"
+      val keystorePath = System.getenv("KEYSTORE_PATH") ?: defaultPath
       storeFile = file(keystorePath)
-      storePassword = System.getenv("STORE_PASSWORD")
-      keyAlias = System.getenv("KEY_ALIAS") ?: "upload"
-      keyPassword = System.getenv("KEY_PASSWORD")
+      storePassword = System.getenv("STORE_PASSWORD") ?: "QuickCallRelease2026!"
+      keyAlias = System.getenv("KEY_ALIAS") ?: "quickcall"
+      keyPassword = System.getenv("KEY_PASSWORD") ?: "QuickCallRelease2026!"
     }
     create("debugConfig") {
       storeFile = file("${rootDir}/debug.keystore")

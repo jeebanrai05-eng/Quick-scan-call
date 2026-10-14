@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Release Tag (e.g. v1.0.2)'
+        description: 'Release Tag (e.g. v1.0.3)'
         required: false
-        default: 'v1.0.2'
+        default: 'v1.0.3'
 
 permissions:
   contents: write
@@ -43,20 +43,21 @@ jobs:
 
           # Handle Release Keystore Signing
           if [ -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ]; then
-            echo "Using production keystore from GitHub Secrets"
-            echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > "$GITHUB_WORKSPACE/my-upload-key.jks"
-            echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/my-upload-key.jks" >> $GITHUB_ENV
-            echo "STORE_PASSWORD=${{ secrets.RELEASE_STORE_PASSWORD || secrets.RELEASE_KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
-            echo "KEY_ALIAS=${{ secrets.RELEASE_KEY_ALIAS || 'upload' }}" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=${{ secrets.RELEASE_KEY_PASSWORD || secrets.RELEASE_STORE_PASSWORD || secrets.RELEASE_KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
+            echo "Using permanent keystore from GitHub Secrets"
+            echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > "$GITHUB_WORKSPACE/release.keystore"
+            echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/release.keystore" >> $GITHUB_ENV
+            echo "STORE_PASSWORD=${{ secrets.RELEASE_STORE_PASSWORD || 'QuickCallRelease2026!' }}" >> $GITHUB_ENV
+            echo "KEY_ALIAS=${{ secrets.RELEASE_KEY_ALIAS || 'quickcall' }}" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=${{ secrets.RELEASE_KEY_PASSWORD || secrets.RELEASE_STORE_PASSWORD || 'QuickCallRelease2026!' }}" >> $GITHUB_ENV
+          elif [ -f "$GITHUB_WORKSPACE/release.keystore" ]; then
+            echo "Using permanent release.keystore from repository root"
+            echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/release.keystore" >> $GITHUB_ENV
+            echo "STORE_PASSWORD=QuickCallRelease2026!" >> $GITHUB_ENV
+            echo "KEY_ALIAS=quickcall" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=QuickCallRelease2026!" >> $GITHUB_ENV
           else
-            echo "::error::CRITICAL: RELEASE_KEYSTORE_BASE64 secret is not configured in GitHub Secrets!"
-            echo "::error::Generating a new ephemeral key is strictly forbidden because it causes 'Signing certificate mismatch' and breaks in-app updates for all existing installations."
-            echo "::error::Please configure the original release signing keystore in GitHub repository Secrets:"
-            echo "::error::  - RELEASE_KEYSTORE_BASE64: Base64-encoded original .jks / .keystore file"
-            echo "::error::  - RELEASE_STORE_PASSWORD: Password for the keystore"
-            echo "::error::  - RELEASE_KEY_ALIAS: Alias name of the original signing key (e.g. upload)"
-            echo "::error::  - RELEASE_KEY_PASSWORD: Password for the signing key"
+            echo "::error::CRITICAL: release.keystore was not found and RELEASE_KEYSTORE_BASE64 secret is not configured!"
+            echo "::error::Generating an ephemeral key is strictly forbidden to prevent signing certificate mismatches."
             exit 1
           fi
 
@@ -64,12 +65,12 @@ jobs:
         run: |
           BUILD_VER_NAME=$(grep -o '"versionName": *"[^"]*"' version.json | head -n 1 | cut -d'"' -f4)
           BUILD_VER_CODE=$(grep -o '"versionCode": *[0-9]*' version.json | head -n 1 | awk '{print $2}')
-          echo "Building APK for Version Name: ${BUILD_VER_NAME:-1.0.2} (code: ${BUILD_VER_CODE:-3})"
+          echo "Building APK for Version Name: ${BUILD_VER_NAME:-1.0.3} (code: ${BUILD_VER_CODE:-4})"
           if [ -f "./gradlew" ]; then
             chmod +x ./gradlew
-            ./gradlew :app:assembleRelease -PversionCode=${BUILD_VER_CODE:-3} -PversionName=${BUILD_VER_NAME:-"1.0.2"} --stacktrace
+            ./gradlew :app:assembleRelease -PversionCode=${BUILD_VER_CODE:-4} -PversionName=${BUILD_VER_NAME:-"1.0.3"} --stacktrace
           else
-            gradle :app:assembleRelease -PversionCode=${BUILD_VER_CODE:-3} -PversionName=${BUILD_VER_NAME:-"1.0.2"} --stacktrace
+            gradle :app:assembleRelease -PversionCode=${BUILD_VER_CODE:-4} -PversionName=${BUILD_VER_NAME:-"1.0.3"} --stacktrace
           fi
 
       - name: Verify APK Generation
@@ -100,7 +101,7 @@ jobs:
         id: release_info
         run: |
           VERSION_NAME=$(grep -o '"versionName": *"[^"]*"' version.json | head -n 1 | cut -d'"' -f4)
-          FALLBACK_TAG="v${VERSION_NAME:-1.0.2}"
+          FALLBACK_TAG="v${VERSION_NAME:-1.0.3}"
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             TAG="${{ inputs.tag_name }}"
