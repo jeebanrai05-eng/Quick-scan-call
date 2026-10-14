@@ -45,10 +45,13 @@ class UpdateRepository(
     var updateUrl: String = DEFAULT_VERSION_URL
 
     companion object {
-        const val DEFAULT_VERSION_URL =
+        const val LATEST_RELEASE_URL =
+            "https://github.com/jeebanrai05-eng/Quick-scan-call/releases/latest/download/version.json"
+        const val RAW_GITHUB_URL =
             "https://raw.githubusercontent.com/jeebanrai05-eng/Quick-scan-call/main/version.json"
         const val GITHUB_PAGES_URL =
             "https://jeebanrai05-eng.github.io/Quick-scan-call/version.json"
+        const val DEFAULT_VERSION_URL = LATEST_RELEASE_URL
     }
 
     /**
@@ -81,37 +84,42 @@ class UpdateRepository(
     }
 
     /**
-     * Fetches version.json from the remote endpoint.
+     * Fetches version.json from the remote endpoint with automatic fallback.
      */
     suspend fun checkForUpdate(customUrl: String? = null): Result<AppUpdateInfo> = withContext(Dispatchers.IO) {
-        val targetUrl = customUrl?.takeIf { it.isNotBlank() } ?: updateUrl
-        try {
-            val request = Request.Builder()
-                .url(targetUrl)
-                .header("Accept", "application/json")
-                .header("User-Agent", "QuickCallScan-Android/${getCurrentVersionName()}")
-                .build()
-
-            val response = okHttpClient.newCall(request).execute()
-            if (!response.isSuccessful) {
-                return@withContext Result.failure(
-                    IllegalStateException("HTTP ${response.code}: ${response.message}")
-                )
-            }
-
-            val body = response.body?.string() ?: return@withContext Result.failure(
-                IllegalStateException("Empty response from server")
-            )
-
-            val updateInfo = adapter.fromJson(body) ?: return@withContext Result.failure(
-                IllegalStateException("Invalid JSON response from update endpoint")
-            )
-
-            Result.success(updateInfo)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to check for update at $targetUrl", e)
-            Result.failure(e)
+        val candidateUrls = if (!customUrl.isNullOrBlank()) {
+            listOf(customUrl)
+        } else {
+            listOf(updateUrl, LATEST_RELEASE_URL, RAW_GITHUB_URL, GITHUB_PAGES_URL).distinct()
         }
+
+        var lastError: Exception? = null
+        for (targetUrl in candidateUrls) {
+            try {
+                val request = Request.Builder()
+                    .url(targetUrl)
+                    .header("Accept", "application/json")
+                    .header("User-Agent", "QuickCallScan-Android/${getCurrentVersionName()}")
+                    .build()
+
+                val response = okHttpClient.newCall(request).execute()
+                if (response.isSuccessful) {
+                    val body = response.body?.string()
+                    if (!body.isNullOrBlank()) {
+                        val updateInfo = adapter.fromJson(body)
+                        if (updateInfo != null) {
+                            return@withContext Result.success(updateInfo)
+                        }
+                    }
+                } else {
+                    lastError = IllegalStateException("HTTP ${response.code} from $targetUrl: ${response.message}")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed update check from $targetUrl: ${e.message}")
+                lastError = e
+            }
+        }
+        Result.failure(lastError ?: IllegalStateException("Unable to fetch update info from configured endpoints"))
     }
 
     /**
