@@ -142,7 +142,7 @@ jobs:
             - **Verified APK Asset:** `app-release.apk`
             - **SHA-256 Checksum:** `${{ env.APK_SHA256 }}`
             - **File Size:** `${{ env.APK_SIZE }} bytes`
-            - **Package Name:** `com.aistudio.detectcaller.akcall`
+            - **Package Name:** `com.aistudio.detectcaller.qkcall`
             - **Target OS:** Android 8.0+ (API 26+)
             
             ### Installation Instructions
