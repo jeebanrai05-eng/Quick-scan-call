@@ -5,5 +5,5 @@
   "releaseNotes": "• Permanent Cryptographic Release Signing: Unified permanent release keystore preventing signature mismatches\n• Ultra-Fast 120 FPS Sci-Fi Hologram Scanner: Laser shimmer overlay with radar compass & real-time OCR target lock\n• Smart Speed SMS & WhatsApp Template Builder: 1-tap fast replies for scanned business numbers\n• Batch Numbers Vault: Copy all, organize, and export scanned numbers\n• In-App Self-Update Dashboard Banner with instant background discovery\n• Fixed OCR parsing for international area codes and bracketed country prefixes (+44 (0)20, 1800/800 toll-free)\n• Enhanced 120 FPS AMOLED Dark theme with battery optimizations",
   "minimumSupportedVersion": 1,
   "fileSize": 61322395,
-  "sha256": "edb7100f784e1f64424858e1f1f06c4ae1734ea9b2fb01431b84f9aeae304e3a"
+  "sha256": "60e10234d0b7df8eba8c2296d3d33ce8fdc1466cb88fc447ae6143cc5c61937d"
 }
