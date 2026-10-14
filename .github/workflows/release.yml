@@ -6,8 +6,6 @@ on:
       - 'v*' # Triggers automatically when a version tag like v1.0.3 is pushed
     branches:
       - main
-    paths:
-      - 'version.json'
   workflow_dispatch:
     inputs:
       tag_name:
