@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.PixelFormat
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.IBinder
@@ -17,7 +18,6 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.FrameLayout
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -25,9 +25,12 @@ import androidx.core.app.NotificationCompat
 import com.example.MainActivity
 import com.example.QuickCallApp
 import com.example.utils.PermissionHelper
-import com.example.utils.PhoneActionHelper
 import kotlinx.coroutines.launch
 
+/**
+ * OverlayService displays a high-performance floating caller ID window
+ * on top of incoming calls using the WindowManager API.
+ */
 class OverlayService : Service() {
 
     private var windowManager: WindowManager? = null
@@ -41,6 +44,12 @@ class OverlayService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_HIDE_OVERLAY) {
+            removeOverlay()
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
         // Android requires foreground service notification immediately
         val notification = createServiceNotification()
         startForeground(NOTIFICATION_ID, notification)
@@ -99,34 +108,52 @@ class OverlayService : Service() {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            x = 0
             y = 120
         }
 
+        val density = resources.displayMetrics.density
+
         val root = FrameLayout(this).apply {
-            setPadding(32, 16, 32, 16)
+            setPadding((16 * density).toInt(), (12 * density).toInt(), (16 * density).toInt(), (12 * density).toInt())
         }
 
         // Modern Cyber Dark / Neon / Spam Red Glassmorphic Card View
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            val density = resources.displayMetrics.density
-            val p = (20 * density).toInt()
+            val p = (18 * density).toInt()
             setPadding(p, p, p, p)
 
             val bg = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
                 cornerRadius = 24 * density
-                setColor(if (isSpam) Color.parseColor("#E61E0A14") else Color.parseColor("#E60A1324"))
+                setColor(if (isSpam) Color.parseColor("#F0190812") else Color.parseColor("#F0081224"))
                 setStroke(
-                    (1.5f * density).toInt(),
+                    (2 * density).toInt(),
                     if (isSpam) Color.parseColor("#FFFF3366") else Color.parseColor("#FF00FF66")
                 )
             }
             background = bg
-            elevation = 16 * density
+            elevation = 20 * density
         }
 
-        // Header Row: Status Badge & Close Button
+        // 1. Top Drag Handle Pill Indicator
+        val dragHandle = View(this).apply {
+            val handleWidth = (44 * density).toInt()
+            val handleHeight = (4 * density).toInt()
+            layoutParams = LinearLayout.LayoutParams(handleWidth, handleHeight).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+                bottomMargin = (12 * density).toInt()
+            }
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 4 * density
+                setColor(if (isSpam) Color.parseColor("#80FF3366") else Color.parseColor("#8000FF66"))
+            }
+        }
+        card.addView(dragHandle)
+
+        // 2. Header Row: Status Badge & Close Button
         val topRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -135,9 +162,8 @@ class OverlayService : Service() {
         val badge = TextView(this).apply {
             text = if (isSpam) "🚨 HIGH RISK SPAM DETECTED" else "⚡ QUICK CALL ID"
             setTextColor(if (isSpam) Color.parseColor("#FFFF3366") else Color.parseColor("#FF00FF66"))
-            textSize = 12f
-            setTypeface(null, android.graphics.Typeface.BOLD)
-            val density = resources.displayMetrics.density
+            textSize = 11.5f
+            setTypeface(null, Typeface.BOLD)
             val badgeBg = GradientDrawable().apply {
                 cornerRadius = 8 * density
                 setColor(if (isSpam) Color.parseColor("#33FF3366") else Color.parseColor("#2600FF66"))
@@ -151,7 +177,8 @@ class OverlayService : Service() {
             text = "✕"
             setTextColor(Color.parseColor("#94A3B8"))
             textSize = 18f
-            setPadding(20, 10, 20, 10)
+            setTypeface(null, Typeface.BOLD)
+            setPadding((12 * density).toInt(), (4 * density).toInt(), (12 * density).toInt(), (4 * density).toInt())
             setOnClickListener {
                 removeOverlay()
                 stopSelf()
@@ -162,13 +189,13 @@ class OverlayService : Service() {
         topRow.addView(closeBtn)
         card.addView(topRow)
 
-        // Caller Details
+        // 3. Caller Details
         val nameView = TextView(this).apply {
             text = callerName
             setTextColor(Color.WHITE)
-            textSize = 20f
-            setTypeface(null, android.graphics.Typeface.BOLD)
-            setPadding(0, 16, 0, 4)
+            textSize = 21f
+            setTypeface(null, Typeface.BOLD)
+            setPadding(0, (12 * density).toInt(), 0, (2 * density).toInt())
         }
         card.addView(nameView)
 
@@ -176,31 +203,42 @@ class OverlayService : Service() {
             text = phoneNumber
             setTextColor(Color.parseColor("#00F0FF"))
             textSize = 16f
-            setPadding(0, 0, 0, 8)
+            setTypeface(null, Typeface.BOLD)
+            setPadding(0, 0, 0, (6 * density).toInt())
         }
         card.addView(numberView)
 
         val metaView = TextView(this).apply {
             text = "📍 $city • 📡 $carrier • 🏷️ $category"
             setTextColor(Color.parseColor("#94A3B8"))
-            textSize = 13f
-            setPadding(0, 0, 0, 16)
+            textSize = 12.5f
+            setPadding(0, 0, 0, (14 * density).toInt())
         }
         card.addView(metaView)
 
-        // Spam Alert message if applicable
+        // 4. Spam Alert warning if applicable
         if (isSpam) {
             val spamAlert = TextView(this).apply {
-                text = "⚠️ Warning: Spam score is $spamScore/100. Community reports flag this caller for financial scam."
-                setTextColor(Color.parseColor("#FF99AA"))
+                text = "⚠️ Threat Rating: $spamScore/100. Community reports flag this caller as suspicious."
+                setTextColor(Color.parseColor("#FFA0B0"))
                 textSize = 12f
-                val density = resources.displayMetrics.density
-                setPadding(0, 0, 0, (12 * density).toInt())
+                val alertBg = GradientDrawable().apply {
+                    cornerRadius = 8 * density
+                    setColor(Color.parseColor("#2BFF3366"))
+                }
+                background = alertBg
+                setPadding((10 * density).toInt(), (6 * density).toInt(), (10 * density).toInt(), (6 * density).toInt())
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    bottomMargin = (14 * density).toInt()
+                }
             }
             card.addView(spamAlert)
         }
 
-        // Action Buttons Row
+        // 5. Action Buttons Row
         val actionsRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
@@ -210,13 +248,13 @@ class OverlayService : Service() {
             text = "Open Details"
             setTextColor(Color.parseColor("#050810"))
             textSize = 12f
-            val density = resources.displayMetrics.density
+            setTypeface(null, Typeface.BOLD)
             val btnBg = GradientDrawable().apply {
                 cornerRadius = 12 * density
                 setColor(Color.parseColor("#FF00FF66"))
             }
             background = btnBg
-            layoutParams = LinearLayout.LayoutParams(0, (40 * density).toInt(), 1f).apply {
+            layoutParams = LinearLayout.LayoutParams(0, (42 * density).toInt(), 1f).apply {
                 rightMargin = (8 * density).toInt()
             }
             setOnClickListener {
@@ -236,13 +274,13 @@ class OverlayService : Service() {
             text = if (isSpam) "Block & Report" else "Quick Block"
             setTextColor(Color.WHITE)
             textSize = 12f
-            val density = resources.displayMetrics.density
+            setTypeface(null, Typeface.BOLD)
             val btnBg = GradientDrawable().apply {
                 cornerRadius = 12 * density
                 setColor(Color.parseColor("#FFCC0033"))
             }
             background = btnBg
-            layoutParams = LinearLayout.LayoutParams(0, (40 * density).toInt(), 1f)
+            layoutParams = LinearLayout.LayoutParams(0, (42 * density).toInt(), 1f)
             setOnClickListener {
                 val app = applicationContext as QuickCallApp
                 app.applicationScope.launch {
@@ -258,20 +296,25 @@ class OverlayService : Service() {
         actionsRow.addView(btnBlock)
         card.addView(actionsRow)
 
-        // Drag to reposition listener
-        card.setOnTouchListener(object : View.OnTouchListener {
+        // 6. Smooth 2D Drag-to-Reposition on Header / Drag Handle
+        val dragTouchListener = object : View.OnTouchListener {
+            private var initialX = 0
             private var initialY = 0
+            private var initialTouchX = 0f
             private var initialTouchY = 0f
 
             override fun onTouch(v: View?, event: MotionEvent?): Boolean {
                 if (event == null) return false
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
+                        initialX = params.x
                         initialY = params.y
+                        initialTouchX = event.rawX
                         initialTouchY = event.rawY
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
+                        params.x = initialX + (event.rawX - initialTouchX).toInt()
                         params.y = initialY + (event.rawY - initialTouchY).toInt()
                         try {
                             windowManager?.updateViewLayout(root, params)
@@ -281,7 +324,10 @@ class OverlayService : Service() {
                 }
                 return false
             }
-        })
+        }
+
+        dragHandle.setOnTouchListener(dragTouchListener)
+        topRow.setOnTouchListener(dragTouchListener)
 
         root.addView(card)
         overlayView = root
@@ -330,6 +376,9 @@ class OverlayService : Service() {
 
     companion object {
         const val NOTIFICATION_ID = 8801
+
+        const val ACTION_SHOW_OVERLAY = "com.example.action.SHOW_OVERLAY"
+        const val ACTION_HIDE_OVERLAY = "com.example.action.HIDE_OVERLAY"
 
         const val EXTRA_PHONE_NUMBER = "extra_phone_number"
         const val EXTRA_CALLER_NAME = "extra_caller_name"

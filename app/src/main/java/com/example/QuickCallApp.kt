@@ -24,6 +24,9 @@ class QuickCallApp : Application() {
 
         createNotificationChannels()
 
+        // Start TelephonyManager PhoneStateListener for real-time incoming call detection
+        com.example.service.CallDetectionManager.startListening(this)
+
         // Sync real device contacts and call logs
         applicationScope.launch {
             repository.syncDeviceContacts()

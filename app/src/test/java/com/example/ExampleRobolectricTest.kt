@@ -94,4 +94,22 @@ class ExampleRobolectricTest {
       tempFile.delete()
     }
   }
+
+  @Test
+  fun testCallDetectionManagerIncomingCallProcessing() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    // Verify starting listener and handling incoming call does not crash
+    com.example.service.CallDetectionManager.startListening(context)
+    com.example.service.CallDetectionManager.handleCallState(
+        context = context,
+        state = android.telephony.TelephonyManager.CALL_STATE_RINGING,
+        incomingNumber = "+1 (800) 555-0199"
+    )
+    com.example.service.CallDetectionManager.handleCallState(
+        context = context,
+        state = android.telephony.TelephonyManager.CALL_STATE_IDLE,
+        incomingNumber = null
+    )
+    com.example.service.CallDetectionManager.stopListening()
+  }
 }

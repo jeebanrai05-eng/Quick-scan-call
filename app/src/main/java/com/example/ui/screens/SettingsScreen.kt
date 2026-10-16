@@ -161,6 +161,111 @@ fun SettingsScreen(
             }
         }
 
+        // Live Test Overlay Floating Window
+        item {
+            NeonGlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Layers,
+                            contentDescription = null,
+                            tint = CyberCyan,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Live Test Floating Overlay",
+                                color = TextPrimary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Preview incoming call ID popup without placing an actual call",
+                                color = TextSecondary,
+                                fontSize = 11.5.sp
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    if (!uiState.hasOverlayPermission) {
+                        Surface(
+                            onClick = { PermissionHelper.openOverlaySettings(context) },
+                            shape = RoundedCornerShape(12.dp),
+                            color = WarningAmber.copy(alpha = 0.15f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, WarningAmber)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "⚠️ 'Display Over Other Apps' permission required",
+                                    color = WarningAmber,
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "GRANT →",
+                                    color = WarningAmber,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                            }
+                        }
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            NeonOutlinedButton(
+                                onClick = { settingsViewModel.testFloatingOverlay(isSpam = false) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("btn_test_overlay_verified"),
+                                borderColor = NeonGreen,
+                                contentColor = NeonGreen
+                            ) {
+                                Text("⚡ Test Normal Call", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            NeonOutlinedButton(
+                                onClick = { settingsViewModel.testFloatingOverlay(isSpam = true) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("btn_test_overlay_spam"),
+                                borderColor = SpamRed,
+                                contentColor = SpamRed
+                            ) {
+                                Text("🚨 Test Spam Alert", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        NeonOutlinedButton(
+                            onClick = { settingsViewModel.dismissFloatingOverlay() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("btn_dismiss_overlay"),
+                            borderColor = DarkGlassBorder,
+                            contentColor = TextSecondary
+                        ) {
+                            Text("Dismiss Active Overlay", fontSize = 11.sp)
+                        }
+                    }
+                }
+            }
+        }
+
         // 2. System Permissions Status
         item {
             SettingsSectionHeader(title = "System Permissions Status")

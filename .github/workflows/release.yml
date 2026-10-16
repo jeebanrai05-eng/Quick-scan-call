@@ -9,9 +9,9 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Release Tag (e.g. v1.0.3)'
+        description: 'Release Tag (e.g. v1.0.4)'
         required: false
-        default: 'v1.0.3'
+        default: 'v1.0.4'
 
 permissions:
   contents: write
@@ -67,12 +67,12 @@ jobs:
         run: |
           BUILD_VER_NAME=$(grep -o '"versionName": *"[^"]*"' version.json | head -n 1 | cut -d'"' -f4)
           BUILD_VER_CODE=$(grep -o '"versionCode": *[0-9]*' version.json | head -n 1 | awk '{print $2}')
-          echo "Building APK for Version Name: ${BUILD_VER_NAME:-1.0.3} (code: ${BUILD_VER_CODE:-4})"
+          echo "Building APK for Version Name: ${BUILD_VER_NAME:-1.0.4} (code: ${BUILD_VER_CODE:-5})"
           if [ -f "./gradlew" ]; then
             chmod +x ./gradlew
-            ./gradlew :app:assembleRelease -PversionCode=${BUILD_VER_CODE:-4} -PversionName=${BUILD_VER_NAME:-"1.0.3"} --stacktrace
+            ./gradlew :app:assembleRelease -PversionCode=${BUILD_VER_CODE:-5} -PversionName=${BUILD_VER_NAME:-"1.0.4"} --stacktrace
           else
-            gradle :app:assembleRelease -PversionCode=${BUILD_VER_CODE:-4} -PversionName=${BUILD_VER_NAME:-"1.0.3"} --stacktrace
+            gradle :app:assembleRelease -PversionCode=${BUILD_VER_CODE:-5} -PversionName=${BUILD_VER_NAME:-"1.0.4"} --stacktrace
           fi
 
       - name: Verify APK Generation
@@ -103,7 +103,7 @@ jobs:
         id: release_info
         run: |
           VERSION_NAME=$(grep -o '"versionName": *"[^"]*"' version.json | head -n 1 | cut -d'"' -f4)
-          FALLBACK_TAG="v${VERSION_NAME:-1.0.3}"
+          FALLBACK_TAG="v${VERSION_NAME:-1.0.4}"
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             TAG="${{ inputs.tag_name }}"

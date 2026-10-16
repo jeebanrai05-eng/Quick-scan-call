@@ -85,6 +85,13 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (com.example.utils.PermissionHelper.hasPhonePermissions(this)) {
+            com.example.service.CallDetectionManager.startListening(this)
+        }
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)

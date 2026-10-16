@@ -86,6 +86,48 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun testFloatingOverlay(isSpam: Boolean) {
+        val app = getApplication<Application>()
+        if (!PermissionHelper.canDrawOverlays(app)) {
+            _uiState.value = _uiState.value.copy(
+                message = "Please grant 'Display Over Other Apps' permission first to show floating overlay"
+            )
+            return
+        }
+
+        if (isSpam) {
+            com.example.service.CallDetectionManager.simulateIncomingCall(
+                context = app,
+                number = "+1 (888) 998-1234",
+                name = "Urgent Bank Security Alert",
+                category = "Suspected Financial Fraud",
+                spamScore = 95,
+                isSpam = true,
+                city = "New York, NY",
+                carrier = "VoIP Digital Relay"
+            )
+            _uiState.value = _uiState.value.copy(message = "Displaying Spam Warning Floating Overlay 🚨")
+        } else {
+            com.example.service.CallDetectionManager.simulateIncomingCall(
+                context = app,
+                number = "+1 (800) 555-0199",
+                name = "Apex Global Logistics",
+                category = "Verified Business Contact",
+                spamScore = 8,
+                isSpam = false,
+                city = "San Francisco, CA",
+                carrier = "Verizon Wireless"
+            )
+            _uiState.value = _uiState.value.copy(message = "Displaying Verified Caller Floating Overlay ⚡")
+        }
+    }
+
+    fun dismissFloatingOverlay() {
+        val app = getApplication<Application>()
+        com.example.service.CallDetectionManager.dismissFloatingOverlay(app)
+        _uiState.value = _uiState.value.copy(message = "Floating overlay dismissed")
+    }
+
     fun clearMessage() {
         _uiState.value = _uiState.value.copy(message = null)
     }
