@@ -1,6 +1,9 @@
 package com.example.viewmodel
 
 import android.app.Application
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.model.AppUpdateInfo
@@ -22,6 +25,7 @@ sealed class UpdateStatus {
     data class UpdateAvailable(val updateInfo: AppUpdateInfo, val currentVersion: String) : UpdateStatus()
     data class Downloading(val percent: Int, val downloadedBytes: Long, val totalBytes: Long) : UpdateStatus()
     data class ReadyToInstall(val apkFile: File, val updateInfo: AppUpdateInfo) : UpdateStatus()
+    data class DebugToReleaseNotice(val apkFile: File, val updateInfo: AppUpdateInfo, val releaseCert: String) : UpdateStatus()
     data class PermissionRequired(val apkFile: File) : UpdateStatus()
     data class Error(val message: String, val canRetry: Boolean = true) : UpdateStatus()
 }
@@ -137,6 +141,18 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
                             }
                         }
                     }
+                    is DownloadProgress.DebugToReleaseReady -> {
+                        val apkFile = progress.apkFile
+                        _uiState.update {
+                            it.copy(
+                                status = UpdateStatus.DebugToReleaseNotice(
+                                    apkFile = apkFile,
+                                    updateInfo = updateInfo,
+                                    releaseCert = progress.releaseCert
+                                )
+                            )
+                        }
+                    }
                     is DownloadProgress.Error -> {
                         _uiState.update {
                             it.copy(status = UpdateStatus.Error(progress.error, canRetry = true))
@@ -144,6 +160,51 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Saves the downloaded APK to the public Downloads folder so it is preserved
+     * even if the user uninstalls the current debug version of the app.
+     */
+    fun saveApkToDownloads(apkFile: File, versionName: String): Boolean {
+        val context = getApplication<Application>().applicationContext
+        val fileName = "QuickCallScan-v$versionName.apk"
+        val result = ApkInstaller.saveApkToDownloads(context, apkFile, fileName)
+        return if (result.isSuccess) {
+            Toast.makeText(context, "APK saved to Downloads/$fileName", Toast.LENGTH_LONG).show()
+            true
+        } else {
+            Toast.makeText(context, "Failed to save APK: ${result.exceptionOrNull()?.message}", Toast.LENGTH_SHORT).show()
+            false
+        }
+    }
+
+    /**
+     * Opens the device's Downloads folder.
+     */
+    fun openDownloads() {
+        val context = getApplication<Application>().applicationContext
+        ApkInstaller.openDownloadsFolder(context)
+    }
+
+    /**
+     * Opens the GitHub release page directly in the device's default web browser.
+     */
+    fun openReleaseInBrowser(apkUrl: String) {
+        val context = getApplication<Application>().applicationContext
+        try {
+            val url = if (apkUrl.contains("/download/")) {
+                apkUrl.substringBefore("/download/")
+            } else {
+                apkUrl
+            }
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(context, "Could not open browser: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 

@@ -5,25 +5,35 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
+import com.example.BuildConfig
 import java.io.File
 import java.security.MessageDigest
-import java.security.cert.CertificateFactory
-import java.security.cert.X509Certificate
-import java.util.Locale
 
 /**
  * Validates downloaded update APK files for security and integrity before passing to Package Installer:
  * 1. Checks that the APK's packageName matches the running app's packageName.
  * 2. Checks that the APK's versionCode is strictly greater than or equal to installed version (prevents downgrade attacks).
- * 3. Verifies that the APK is signed by the same signing certificate as the currently installed app.
- * 4. Checks SHA-256 hash if provided in the update manifest.
+ * 3. Verifies that the APK is signed by the same signing certificate as the currently installed app,
+ *    or detects a legitimate transition from a Development (Debug) build to the Official Release build.
+ * 4. Checks SHA-256 file hash against the update manifest.
  */
 object ApkVerifier {
 
     private const val TAG = "ApkVerifier"
 
+    // Official production release certificate SHA-256 fingerprint
+    const val OFFICIAL_RELEASE_SHA256 = "DA:12:9C:93:EB:91:AB:77:04:FF:3A:D0:88:FF:28:2D:08:E3:70:75:2D:02:86:E2:CA:E2:90:B6:18:AD:3A:C6"
+
+    // Known development debug certificate SHA-256 fingerprint
+    const val KNOWN_DEBUG_SHA256 = "ED:9B:DD:D3:38:66:00:78:8A:4B:81:00:9F:30:1F:29:3F:5A:39:0A:72:08:1B:E5:D7:9D:CC:90:75:BE:83:BB"
+
     sealed class VerificationResult {
         data object Valid : VerificationResult()
+        data class DebugToReleaseTransition(
+            val message: String,
+            val currentCert: String,
+            val releaseCert: String
+        ) : VerificationResult()
         data class Error(val reason: String) : VerificationResult()
     }
 
@@ -96,11 +106,24 @@ object ApkVerifier {
             )
         }
 
-        // 3. Cryptographic Signing Certificate Verification (Strict signature match)
+        // 3. Cryptographic Signing Certificate Verification
         val signatureMatch = verifySignaturesMatch(context, archiveInfo)
         if (!signatureMatch) {
             val currentFps = getSignaturesForPackage(pm, currentPackageName).map { it.sha256Fingerprint() }
             val apkFps = getSignaturesFromPackageInfo(archiveInfo).map { it.sha256Fingerprint() }
+
+            val isReleaseApk = apkFps.any { it.equals(OFFICIAL_RELEASE_SHA256, ignoreCase = true) }
+            val isCurrentDebug = currentFps.any { it.equals(KNOWN_DEBUG_SHA256, ignoreCase = true) } || BuildConfig.DEBUG
+
+            if (isReleaseApk && isCurrentDebug) {
+                Log.i(TAG, "Legitimate Debug to Release transition detected. Both keys verified.")
+                return VerificationResult.DebugToReleaseTransition(
+                    message = "Official Release APK verified! You are currently running a Development (Debug) build.",
+                    currentCert = currentFps.firstOrNull() ?: KNOWN_DEBUG_SHA256,
+                    releaseCert = apkFps.firstOrNull() ?: OFFICIAL_RELEASE_SHA256
+                )
+            }
+
             return VerificationResult.Error(
                 "Security verification failed: Signing certificate mismatch!\n" +
                 "Installed app certificate: ${currentFps.joinToString(", ")}\n" +
@@ -108,7 +131,7 @@ object ApkVerifier {
             )
         }
 
-        // 4. APK File Checksum Verification (Strictly separate from signing certificate)
+        // 4. APK File Checksum Verification
         if (!expectedSha256.isNullOrBlank()) {
             val fileHash = calculateSha256(apkFile)
             if (!fileHash.equals(expectedSha256.trim(), ignoreCase = true)) {

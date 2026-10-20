@@ -1,9 +1,9 @@
 {
-  "versionCode": 6,
-  "versionName": "1.0.5",
-  "apkUrl": "https://github.com/jeebanrai05-eng/Quick-scan-call/releases/download/v1.0.5/app-release.apk",
-  "releaseNotes": "\u2022 Advanced OCR & Document Intelligence: High-accuracy Google ML Kit on-device text recognition with multi-pass enhancement\n\u2022 Smart Country & Format Detection: Automatic recognition of Kuwait (+965), Nepal (+977), India (+91), UAE (+971), and international numbers with country flags\n\u2022 Intelligent Duplicate Consolidation: Merges duplicate numbers automatically and filters out junk dates, times, and currencies\n\u2022 Interactive Image Enhancement Studio: Live contrast/brightness tuning, 90\u00b0 rotation, unsharp-mask sharpening, noise reduction, and binarization\n\u2022 Extracted Entity Fields: Automatically identifies Organization/Business, Contact Person, Phone, Email, Website, and Physical Address\n\u2022 Multi-Page Batch Scanning: Scan multiple pages with thumbnail strip, review consolidated contacts, and export to vCard (.vcf) & Spreadsheet (.csv)\n\u2022 Inline Result Editor: Directly edit or refine recognized caller info, numbers, and categories\n\u2022 Crash & Security Hardening: Fixed READ_PHONE_STATE runtime permission checks on cold start preventing SecurityException",
+  "versionCode": 7,
+  "versionName": "1.0.6",
+  "apkUrl": "https://github.com/jeebanrai05-eng/Quick-scan-call/releases/download/v1.0.6/app-release.apk",
+  "releaseNotes": "• Test Release v1.0.6: In-App self update verification & seamless signature transition\n• Verified 1-Click Update System with APK integrity check\n• Save to Downloads Folder support for clean development upgrades\n• Enhanced OCR Scanner performance and country number formatting",
   "minimumSupportedVersion": 1,
-  "fileSize": 61420735,
-  "sha256": "43f2fa79ea48f872f09c58c5c8efa1174b61e9f6c8459277dc48b8ffcf45c05f"
+  "fileSize": 61437119,
+  "sha256": "959640d407e7e75ed9e54c8bbe822f175587942d5396311328acee722be0f899"
 }

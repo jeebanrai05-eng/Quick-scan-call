@@ -26,12 +26,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -239,6 +243,25 @@ fun UpdateScreen(
                 ReadyToInstallCard(
                     updateInfo = status.updateInfo,
                     onInstallClick = { updateViewModel.proceedToInstall(status.apkFile) }
+                )
+            }
+            is UpdateStatus.DebugToReleaseNotice -> {
+                DebugToReleaseNoticeCard(
+                    apkFile = status.apkFile,
+                    updateInfo = status.updateInfo,
+                    releaseCert = status.releaseCert,
+                    onSaveToDownloads = {
+                        updateViewModel.saveApkToDownloads(status.apkFile, status.updateInfo.versionName)
+                    },
+                    onOpenDownloads = {
+                        updateViewModel.openDownloads()
+                    },
+                    onOpenInBrowser = {
+                        updateViewModel.openReleaseInBrowser(status.updateInfo.apkUrl)
+                    },
+                    onAttemptInstall = {
+                        updateViewModel.proceedToInstall(status.apkFile)
+                    }
                 )
             }
             is UpdateStatus.PermissionRequired -> {
@@ -799,8 +822,15 @@ private fun ErrorStatusCard(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Android strictly requires the update APK to be signed with the exact same cryptographic key as the currently installed application. If the original signing keystore was lost or recreated, in-place self-update is cryptographically blocked by the OS. A clean reinstall (uninstalling the previous version) is required to adopt the new key.",
+                            text = "Android strictly requires the update APK to be signed with the exact same cryptographic key as the currently installed application. When switching from a Development/Debug build to an Official Release build, in-place self-update is blocked by Android OS. A clean reinstall (uninstalling the previous debug version) is required to adopt the official release key.",
                             color = TextSecondary,
+                            fontSize = 11.sp,
+                            lineHeight = 15.sp
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "नेपाली: तपाईंको फोनमा अहिले Development (Debug) संस्करण इन्स्टल छ। GitHub बाट आधिकारिक Release (v1.0.5) APK डाउनलोड गरी इन्स्टल गर्न पुरानो Debug एप अनइन्स्टल गर्नुहोस्।",
+                            color = TextMuted,
                             fontSize = 11.sp,
                             lineHeight = 15.sp
                         )
@@ -841,3 +871,221 @@ private fun SecurityBulletPoint(text: String) {
         )
     }
 }
+
+@Composable
+private fun DebugToReleaseNoticeCard(
+    apkFile: java.io.File,
+    updateInfo: AppUpdateInfo,
+    releaseCert: String,
+    onSaveToDownloads: () -> Unit,
+    onOpenDownloads: () -> Unit,
+    onOpenInBrowser: () -> Unit,
+    onAttemptInstall: () -> Unit
+) {
+    var hasSavedToDownloads by remember { mutableStateOf(false) }
+
+    NeonGlassCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(CyberCyan.copy(alpha = 0.15f), CircleShape)
+                        .border(1.dp, CyberCyan.copy(alpha = 0.4f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.VerifiedUser,
+                        contentDescription = null,
+                        tint = CyberCyan,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(14.dp))
+                Column {
+                    Text(
+                        text = "OFFICIAL RELEASE VERIFIED",
+                        color = CyberCyan,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 1.sp
+                    )
+                    Text(
+                        text = "Upgrade to v${updateInfo.versionName}",
+                        color = TextPrimary,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = DarkSurfaceVariant.copy(alpha = 0.6f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, DarkGlassBorder)
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = WarningAmber,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Development Build Detected",
+                            color = WarningAmber,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Android OS prohibits in-place overwriting of a Debug build with an Official Release build due to cryptographic certificate differences. The downloaded APK is 100% authentic and ready.",
+                        color = TextSecondary,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "नेपाली: तपाईंको फोनमा अहिले Development (Debug) संस्करण छ। आधिकारिक Release v${updateInfo.versionName} मा अपग्रेड गर्न तलका सजिला चरणहरू पालना गर्नुहोस्:",
+                        color = TextMuted,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            UpgradeStepItem(
+                stepNumber = "1",
+                title = "Save APK to Downloads",
+                subtitle = "APK फाइल फोनको Downloads फोल्डरमा सुरक्षित राख्नुहोस्।"
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            UpgradeStepItem(
+                stepNumber = "2",
+                title = "Uninstall Current Debug App",
+                subtitle = "फोनबाट पुरानो डिबग एप हटाउनुहोस्।"
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            UpgradeStepItem(
+                stepNumber = "3",
+                title = "Install Official Release APK",
+                subtitle = "Downloads फोल्डरबाट नयाँ APK इन्स्टल गर्नुहोस्। त्यसपछि भविष्यका सबै अपडेट स्वतः १-क्लिकमै हुनेछन्!"
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = {
+                    onSaveToDownloads()
+                    hasSavedToDownloads = true
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = CyberCyan, contentColor = DarkBackground),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+            ) {
+                Icon(imageVector = Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("1. Save APK to Downloads Folder", fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
+            }
+
+            if (hasSavedToDownloads) {
+                Spacer(modifier = Modifier.height(10.dp))
+                OutlinedButton(
+                    onClick = onOpenDownloads,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonGreen),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, NeonGreen.copy(alpha = 0.6f)),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Open Downloads Folder", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onOpenInBrowser,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimary),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, DarkGlassBorder),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(imageVector = Icons.Default.Language, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("GitHub Release", fontSize = 12.sp)
+                }
+
+                OutlinedButton(
+                    onClick = onAttemptInstall,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, DarkGlassBorder),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(imageVector = Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Direct Install", fontSize = 12.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UpgradeStepItem(
+    stepNumber: String,
+    title: String,
+    subtitle: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top
+    ) {
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .background(CyberCyan.copy(alpha = 0.2f), CircleShape)
+                .border(1.dp, CyberCyan, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = stepNumber,
+                color = CyberCyan,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Spacer(modifier = Modifier.width(10.dp))
+        Column {
+            Text(text = title, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            Text(text = subtitle, color = TextMuted, fontSize = 11.sp, lineHeight = 15.sp)
+        }
+    }
+}
+

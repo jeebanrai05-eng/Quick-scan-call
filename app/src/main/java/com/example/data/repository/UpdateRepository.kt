@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit
 sealed class DownloadProgress {
     data class Progress(val bytesDownloaded: Long, val totalBytes: Long, val percent: Int) : DownloadProgress()
     data class Completed(val apkFile: File) : DownloadProgress()
+    data class DebugToReleaseReady(val apkFile: File, val releaseCert: String) : DownloadProgress()
     data class Error(val error: String) : DownloadProgress()
 }
 
@@ -191,12 +192,16 @@ class UpdateRepository(
                 is ApkVerifier.VerificationResult.Valid -> {
                     emit(DownloadProgress.Completed(destinationFile))
                 }
+                is ApkVerifier.VerificationResult.DebugToReleaseTransition -> {
+                    // Do NOT delete the APK! It is the genuine authentic release APK from GitHub
+                    emit(DownloadProgress.DebugToReleaseReady(destinationFile, verification.releaseCert))
+                }
                 is ApkVerifier.VerificationResult.Error -> {
                     // Security precaution: delete invalid APK immediately
                     if (destinationFile.exists()) {
                         destinationFile.delete()
                     }
-                    emit(DownloadProgress.Error("Security verification failed: ${verification.reason}"))
+                    emit(DownloadProgress.Error(verification.reason))
                 }
             }
         } catch (e: Exception) {
