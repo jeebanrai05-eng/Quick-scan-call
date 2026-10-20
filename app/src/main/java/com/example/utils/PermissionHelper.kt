@@ -28,6 +28,13 @@ object PermissionHelper {
         ) == PackageManager.PERMISSION_GRANTED
     }
 
+    fun hasPhoneStatePermission(context: Context): Boolean {
+        return ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.READ_PHONE_STATE
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
     fun hasPhonePermissions(context: Context): Boolean {
         val state = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE)
         val log = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALL_LOG)

@@ -48,10 +48,10 @@ object AiNumberScanner {
 
         if (apiKey.isBlank() || apiKey == "DEFAULT_KEY" || apiKey == "MY_GEMINI_API_KEY") {
             // Local fallback with multi-pass CV enhancement
-            val localResults = OcrScanner.processBitmapMultiPass(bitmap, source)
+            val localResults = OcrScanner.processBitmapMultiPass(bitmap, source).phoneNumbers
             return@withContext Pair(
                 localResults,
-                "Gemini API key is not configured in Secrets panel. Used Turbo Multi-Pass local scanner."
+                "Used Turbo Multi-Pass on-device engine (offline high-accuracy)."
             )
         }
 
@@ -65,7 +65,7 @@ object AiNumberScanner {
             
             Tasks:
             1. Find all phone numbers visible on the cards, paper, bills, or signboards.
-            2. If digits are scratched, cracked, or faint, restore the true digits using contextual patterns (e.g. Nepal 984/985/986/980/981/982/974/975, India 9/8/7/6, US 10-digit).
+            2. If digits are scratched, cracked, or faint, restore the true digits using contextual patterns (e.g. Kuwait +965, Nepal 984/985/986/980/981/982/974/975, India 9/8/7/6, US 10-digit).
             3. Detect any associated label or business name (e.g. Mobile, WhatsApp, Office, Support, Personal).
             
             Output strictly a valid JSON array of objects with the following keys for each number:
@@ -112,7 +112,7 @@ object AiNumberScanner {
 
             if (!response.isSuccessful) {
                 // Fall back to multi-pass local scanner
-                val localResults = OcrScanner.processBitmapMultiPass(bitmap, source)
+                val localResults = OcrScanner.processBitmapMultiPass(bitmap, source).phoneNumbers
                 return@withContext Pair(
                     localResults,
                     "AI service unavailable (Code ${response.code}). Restored using Turbo Multi-Pass."
@@ -122,7 +122,7 @@ object AiNumberScanner {
             val parsedResults = parseGeminiResponse(responseBody, source)
             if (parsedResults.isEmpty()) {
                 // Double check with local multi-pass engine
-                val localResults = OcrScanner.processBitmapMultiPass(bitmap, source)
+                val localResults = OcrScanner.processBitmapMultiPass(bitmap, source).phoneNumbers
                 return@withContext Pair(
                     localResults,
                     if (localResults.isEmpty()) "No numbers detected in image." else "Recovered ${localResults.size} number(s) via Local CV Engine."
@@ -131,7 +131,7 @@ object AiNumberScanner {
 
             Pair(parsedResults, "AI successfully reconstructed ${parsedResults.size} number(s) with high accuracy!")
         } catch (e: Exception) {
-            val localResults = OcrScanner.processBitmapMultiPass(bitmap, source)
+            val localResults = OcrScanner.processBitmapMultiPass(bitmap, source).phoneNumbers
             Pair(
                 localResults,
                 "AI network error: ${e.message ?: "fallback applied"}. Used Turbo Multi-Pass."

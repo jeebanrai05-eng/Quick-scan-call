@@ -152,6 +152,9 @@ fun HomeScreen(
         hasContactsPermissions = PermissionHelper.hasContactsPermission(context)
         if (hasPhonePermissions || hasContactsPermissions) {
             callerViewModel.syncDeviceData()
+            if (hasPhonePermissions) {
+                com.example.service.CallDetectionManager.startListening(context)
+            }
         }
     }
 

@@ -92,6 +92,12 @@ object CallDetectionManager {
             return
         }
 
+        // Verify READ_PHONE_STATE permission before accessing TelephonyManager
+        if (!PermissionHelper.hasPhoneStatePermission(appContext)) {
+            Log.d(TAG, "READ_PHONE_STATE permission not yet granted; skipping listener registration until granted by user")
+            return
+        }
+
         val tm = appContext.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
         if (tm == null) {
             Log.w(TAG, "TelephonyManager not available on this device")
@@ -123,9 +129,9 @@ object CallDetectionManager {
             isListening.set(true)
             Log.i(TAG, "Successfully started PhoneStateListener on TelephonyManager")
         } catch (e: SecurityException) {
-            Log.e(TAG, "SecurityException: READ_PHONE_STATE permission not granted: ${e.message}")
+            Log.w(TAG, "SecurityException registering PhoneStateListener: ${e.message}")
         } catch (e: Exception) {
-            Log.e(TAG, "Error registering PhoneStateListener: ${e.message}")
+            Log.w(TAG, "Error registering PhoneStateListener: ${e.message}")
         }
     }
 

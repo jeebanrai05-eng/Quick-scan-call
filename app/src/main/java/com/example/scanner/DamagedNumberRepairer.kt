@@ -148,27 +148,37 @@ object DamagedNumberRepairer {
             return true
         }
 
-        // 3. Nepal landline (01-XXXXXXX -> 8 digits or 021, 061, 071 -> 8-9 digits)
+        // 3. Kuwait 8-digit mobile/landline (starts with 5, 6, 9, 4, 2)
+        if (digitsOnly.length == 8 && digitsOnly[0] in listOf('2', '4', '5', '6', '9')) {
+            return true
+        }
+
+        // 4. Kuwait with country code (965XXXXXXXX)
+        if (digitsOnly.length == 11 && digitsOnly.startsWith("965")) {
+            return true
+        }
+
+        // 5. Nepal landline (01-XXXXXXX -> 8 digits or 021, 061, 071 -> 8-9 digits)
         if (digitsOnly.length in 8..9 && digitsOnly.startsWith("0")) {
             return true
         }
 
-        // 4. Standard North America 10-digit (NXX-NXX-XXXX)
+        // 6. Standard North America 10-digit (NXX-NXX-XXXX)
         if (digitsOnly.length == 10 && digitsOnly[0] in '2'..'9' && digitsOnly[3] in '2'..'9') {
             return true
         }
 
-        // 5. India 10-digit mobile (starts with 6, 7, 8, 9)
+        // 7. India 10-digit mobile (starts with 6, 7, 8, 9)
         if (digitsOnly.length == 10 && digitsOnly[0] in '6'..'9') {
             return true
         }
 
-        // 6. India with country code (91XXXXXXXXXX)
+        // 8. India with country code (91XXXXXXXXXX)
         if (digitsOnly.length == 12 && digitsOnly.startsWith("91")) {
             return true
         }
 
-        // 7. General international length
-        return digitsOnly.length in 9..14
+        // 9. General international length
+        return digitsOnly.length in 8..14
     }
 }
