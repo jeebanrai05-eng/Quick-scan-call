@@ -2,8 +2,8 @@
   "versionCode": 7,
   "versionName": "1.0.6",
   "apkUrl": "https://github.com/jeebanrai05-eng/Quick-scan-call/releases/download/v1.0.6/app-release.apk",
-  "releaseNotes": "• Test Release v1.0.6: In-App self update verification & seamless signature transition\n• Verified 1-Click Update System with APK integrity check\n• Save to Downloads Folder support for clean development upgrades\n• Enhanced OCR Scanner performance and country number formatting",
+  "releaseNotes": "\u2022 Test Release v1.0.6: In-App self update verification & seamless signature transition\n\u2022 Verified 1-Click Update System with APK integrity check\n\u2022 Save to Downloads Folder support for clean development upgrades\n\u2022 Enhanced OCR Scanner performance and country number formatting",
   "minimumSupportedVersion": 1,
   "fileSize": 61437119,
-  "sha256": "959640d407e7e75ed9e54c8bbe822f175587942d5396311328acee722be0f899"
+  "sha256": "8e436912ce3720512377dc0ab33d2895f0b8b8aee4f0a5a8cd9af49000320870"
 }
