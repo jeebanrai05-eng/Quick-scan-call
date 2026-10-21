@@ -1,8 +1,15 @@
 package com.example.ui.screens
 
+import android.Manifest
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -21,14 +28,16 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContactPhone
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PhoneInTalk
+import androidx.compose.material.icons.filled.Policy
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Divider
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -38,6 +47,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -51,9 +63,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.components.GlassCard
 import com.example.ui.components.NeonGlassCard
 import com.example.ui.components.NeonOutlinedButton
+import com.example.ui.components.PRIVACY_POLICY_URL
+import com.example.ui.components.PrivacyPolicyDialog
 import com.example.ui.theme.CyberCyan
 import com.example.ui.theme.DarkBackground
 import com.example.ui.theme.DarkGlassBorder
+import com.example.ui.theme.DarkSurface
 import com.example.ui.theme.DarkSurfaceVariant
 import com.example.ui.theme.NeonGreen
 import com.example.ui.theme.SpamRed
@@ -74,6 +89,32 @@ fun SettingsScreen(
     val context = LocalContext.current
     val uiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
     val updateUiState = updateViewModel?.uiState?.collectAsStateWithLifecycle()?.value
+    var showPrivacyDialog by remember { mutableStateOf(false) }
+
+    // Real Runtime Permission Request Launchers
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) {
+        settingsViewModel.refreshPermissionStates()
+    }
+
+    val phonePermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        settingsViewModel.refreshPermissionStates()
+    }
+
+    val contactsPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        settingsViewModel.refreshPermissionStates()
+    }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) {
+        settingsViewModel.refreshPermissionStates()
+    }
 
     LaunchedEffect(Unit) {
         settingsViewModel.refreshPermissionStates()
@@ -84,6 +125,10 @@ fun SettingsScreen(
             Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
             settingsViewModel.clearMessage()
         }
+    }
+
+    if (showPrivacyDialog) {
+        PrivacyPolicyDialog(onDismiss = { showPrivacyDialog = false })
     }
 
     LazyColumn(
@@ -161,7 +206,7 @@ fun SettingsScreen(
             }
         }
 
-        // Live Test Overlay Floating Window
+        // Active Overlay Shield Status Card
         item {
             NeonGlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -178,13 +223,13 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = "Live Test Floating Overlay",
+                                text = "Active Caller Shield Status",
                                 color = TextPrimary,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Preview incoming call ID popup without placing an actual call",
+                                text = "The caller overlay automatically triggers during actual incoming calls",
                                 color = TextSecondary,
                                 fontSize = 11.5.sp
                             )
@@ -222,44 +267,43 @@ fun SettingsScreen(
                             }
                         }
                     } else {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = DarkSurface,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, DarkGlassBorder),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            NeonOutlinedButton(
-                                onClick = { settingsViewModel.testFloatingOverlay(isSpam = false) },
+                            Row(
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .testTag("btn_test_overlay_verified"),
-                                borderColor = NeonGreen,
-                                contentColor = NeonGreen
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text("⚡ Test Normal Call", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = NeonGreen,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Real-Time Overlay Ready",
+                                        color = NeonGreen,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+
+                                NeonOutlinedButton(
+                                    onClick = { settingsViewModel.dismissFloatingOverlay() },
+                                    borderColor = DarkGlassBorder,
+                                    contentColor = TextSecondary
+                                ) {
+                                    Text("Dismiss Active Popup", fontSize = 11.sp)
+                                }
                             }
-
-                            NeonOutlinedButton(
-                                onClick = { settingsViewModel.testFloatingOverlay(isSpam = true) },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .testTag("btn_test_overlay_spam"),
-                                borderColor = SpamRed,
-                                contentColor = SpamRed
-                            ) {
-                                Text("🚨 Test Spam Alert", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        NeonOutlinedButton(
-                            onClick = { settingsViewModel.dismissFloatingOverlay() },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("btn_dismiss_overlay"),
-                            borderColor = DarkGlassBorder,
-                            contentColor = TextSecondary
-                        ) {
-                            Text("Dismiss Active Overlay", fontSize = 11.sp)
                         }
                     }
                 }
@@ -292,7 +336,9 @@ fun SettingsScreen(
                         description = "Required for live OCR number recognition",
                         icon = Icons.Default.CameraAlt,
                         isGranted = uiState.hasCameraPermission,
-                        onFixClick = { PermissionHelper.openAppSettings(context) }
+                        onFixClick = {
+                            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                        }
                     )
 
                     HorizontalDivider(
@@ -305,7 +351,14 @@ fun SettingsScreen(
                         description = "Required to detect incoming callers and log history",
                         icon = Icons.Default.PhoneInTalk,
                         isGranted = uiState.hasPhonePermission,
-                        onFixClick = { PermissionHelper.openAppSettings(context) }
+                        onFixClick = {
+                            phonePermissionLauncher.launch(
+                                arrayOf(
+                                    Manifest.permission.READ_PHONE_STATE,
+                                    Manifest.permission.READ_CALL_LOG
+                                )
+                            )
+                        }
                     )
 
                     HorizontalDivider(
@@ -318,22 +371,130 @@ fun SettingsScreen(
                         description = "Matches incoming calls against your saved contacts",
                         icon = Icons.Default.ContactPhone,
                         isGranted = uiState.hasContactsPermission,
-                        onFixClick = { PermissionHelper.openAppSettings(context) }
+                        onFixClick = {
+                            contactsPermissionLauncher.launch(
+                                arrayOf(
+                                    Manifest.permission.READ_CONTACTS,
+                                    Manifest.permission.WRITE_CONTACTS
+                                )
+                            )
+                        }
+                    )
+
+                    HorizontalDivider(
+                        color = Color.White.copy(alpha = 0.08f),
+                        modifier = Modifier.padding(vertical = 10.dp)
+                    )
+
+                    PermissionStatusItem(
+                        name = "Notifications & Update Alerts",
+                        description = "Shows caller alerts and critical update notifications",
+                        icon = Icons.Default.Notifications,
+                        isGranted = uiState.hasNotificationPermission,
+                        onFixClick = {
+                            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
                     )
                 }
             }
         }
 
-        // 3. Offline Intelligence Database
+        // 3. Privacy Policy & Data Protection (Official Hosted Policy)
+        item {
+            SettingsSectionHeader(title = "Privacy Policy & Data Security")
+        }
+
+        item {
+            NeonGlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .background(NeonGreen.copy(alpha = 0.15f), CircleShape)
+                                .border(1.dp, NeonGreen, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Security,
+                                contentDescription = null,
+                                tint = NeonGreen,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Official Hosted Privacy Policy",
+                                color = TextPrimary,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = PRIVACY_POLICY_URL,
+                                color = CyberCyan,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "Quick Call Scan complies fully with Google Play Developer Privacy standards. We process all OCR scanning and phone detection strictly on your device. We do NOT collect, sell, or upload your personal contacts, photos, or call records.",
+                        color = TextSecondary,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        NeonOutlinedButton(
+                            onClick = { showPrivacyDialog = true },
+                            borderColor = CyberCyan,
+                            contentColor = CyberCyan,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(imageVector = Icons.Default.Policy, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Read in App", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        NeonOutlinedButton(
+                            onClick = {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_POLICY_URL)).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(intent)
+                            },
+                            borderColor = NeonGreen,
+                            contentColor = NeonGreen,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(imageVector = Icons.Default.Language, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Open Web ↗", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Offline Intelligence Database
         item {
             SettingsSectionHeader(title = "Offline Intelligence Database")
         }
 
         item {
-            NeonGlassCard(modifier = Modifier.fillMaxWidth()) {
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "100% Privacy Protected",
+                        text = "100% On-Device Processing",
                         color = NeonGreen,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold
@@ -368,7 +529,7 @@ fun SettingsScreen(
             }
         }
 
-        // 4. System Shortcuts & Widget Integration
+        // 5. System Shortcuts & Widget Integration
         item {
             SettingsSectionHeader(title = "OUTSIDE SHORTCUTS & WIDGET (बाहिर Shortcut)")
             Spacer(modifier = Modifier.height(10.dp))
@@ -377,7 +538,6 @@ fun SettingsScreen(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    // 1. Home Screen Pin Shortcut Button
                     NeonOutlinedButton(
                         onClick = { com.example.utils.ShortcutHelper.pinQuickScannerShortcut(context) },
                         modifier = Modifier.fillMaxWidth()
@@ -393,7 +553,6 @@ fun SettingsScreen(
 
                     HorizontalDivider(color = DarkGlassBorder)
 
-                    // 2. App Icon Long-Press Shortcut Tip
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("📱", fontSize = 20.sp)
                         Spacer(modifier = Modifier.width(10.dp))
@@ -414,7 +573,6 @@ fun SettingsScreen(
 
                     HorizontalDivider(color = DarkGlassBorder)
 
-                    // 3. Quick Settings Notification Tile Tip
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("⚡", fontSize = 20.sp)
                         Spacer(modifier = Modifier.width(10.dp))
@@ -435,7 +593,6 @@ fun SettingsScreen(
 
                     HorizontalDivider(color = DarkGlassBorder)
 
-                    // 4. Desktop App Widget Tip
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("🧩", fontSize = 20.sp)
                         Spacer(modifier = Modifier.width(10.dp))
@@ -457,7 +614,7 @@ fun SettingsScreen(
             }
         }
 
-        // 5. Software Updates & GitHub Releases
+        // 6. Software Updates & GitHub Releases
         item {
             SettingsSectionHeader(title = "Software Updates & Releases")
         }
@@ -488,7 +645,7 @@ fun SettingsScreen(
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold
                                 )
-                                val currentVer = updateUiState?.currentVersionName ?: "1.0.1"
+                                val currentVer = updateUiState?.currentVersionName ?: "1.0.7"
                                 Text(
                                     text = "Installed: v$currentVer • Automated release checks",
                                     color = TextMuted,
@@ -498,14 +655,15 @@ fun SettingsScreen(
                         }
 
                         val status = updateUiState?.status
-                        if (status is com.example.viewmodel.UpdateStatus.UpdateAvailable) {
+                        if (status is com.example.viewmodel.UpdateStatus.UpdateAvailable || status is com.example.viewmodel.UpdateStatus.ForceUpdateRequired) {
+                            val ver = if (status is com.example.viewmodel.UpdateStatus.UpdateAvailable) status.updateInfo.versionName else (status as com.example.viewmodel.UpdateStatus.ForceUpdateRequired).updateInfo.versionName
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
                                 color = NeonGreen.copy(alpha = 0.2f),
                                 border = androidx.compose.foundation.BorderStroke(1.dp, NeonGreen)
                             ) {
                                 Text(
-                                    text = "v${status.updateInfo.versionName} Available!",
+                                    text = "v$ver Available!",
                                     color = NeonGreen,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
@@ -538,15 +696,15 @@ fun SettingsScreen(
             }
         }
 
-        // 6. App Info
+        // 7. App Info
         item {
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    val verName = updateUiState?.currentVersionName ?: "1.0.1"
-                    val verCode = updateUiState?.currentVersionCode ?: 2L
+                    val verName = updateUiState?.currentVersionName ?: "1.0.7"
+                    val verCode = updateUiState?.currentVersionCode ?: 8L
                     Text(
                         text = "Quick Call Scan & Detect Caller",
                         color = TextPrimary,

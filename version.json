@@ -1,9 +1,9 @@
 {
-  "versionCode": 7,
-  "versionName": "1.0.6",
-  "apkUrl": "https://github.com/jeebanrai05-eng/Quick-scan-call/releases/download/v1.0.6/app-release.apk",
-  "releaseNotes": "\u2022 Test Release v1.0.6: In-App self update verification & seamless signature transition\n\u2022 Verified 1-Click Update System with APK integrity check\n\u2022 Save to Downloads Folder support for clean development upgrades\n\u2022 Enhanced OCR Scanner performance and country number formatting",
-  "minimumSupportedVersion": 1,
-  "fileSize": 61437119,
-  "sha256": "8e436912ce3720512377dc0ab33d2895f0b8b8aee4f0a5a8cd9af49000320870"
+  "versionCode": 8,
+  "versionName": "1.0.7",
+  "apkUrl": "https://github.com/jeebanrai05-eng/Quick-scan-call/releases/download/v1.0.7/app-release.apk",
+  "releaseNotes": "• CRITICAL MANDATORY UPDATE v1.0.7 (Security & Privacy Compliance)\n• Official Privacy Policy integrated: https://queeckcall.gt.tc/?i=1\n• Removed simulated mock calls; upgraded to real telephony listeners & system runtime permissions\n• Added in-app Privacy Policy dialog & external web viewer\n• Added immediate system update notifications\n• All older versions (v1.0.6 and below) require immediate mandatory update to v1.0.7",
+  "minimumSupportedVersion": 8,
+  "fileSize": 61453503,
+  "sha256": "bce0859c77c2ffa83bee76b0de3f44ca312474732bcc909f40ecd782230b02a1"
 }

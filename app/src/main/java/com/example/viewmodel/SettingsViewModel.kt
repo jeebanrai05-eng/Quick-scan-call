@@ -21,6 +21,7 @@ data class SettingsUiState(
     val hasCameraPermission: Boolean = false,
     val hasPhonePermission: Boolean = false,
     val hasContactsPermission: Boolean = false,
+    val hasNotificationPermission: Boolean = false,
     val isSyncing: Boolean = false,
     val message: String? = null
 )
@@ -50,7 +51,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             hasOverlayPermission = PermissionHelper.canDrawOverlays(app),
             hasCameraPermission = PermissionHelper.hasCameraPermission(app),
             hasPhonePermission = PermissionHelper.hasPhonePermissions(app),
-            hasContactsPermission = PermissionHelper.hasContactsPermission(app)
+            hasContactsPermission = PermissionHelper.hasContactsPermission(app),
+            hasNotificationPermission = PermissionHelper.hasNotificationPermission(app)
         )
     }
 
@@ -76,49 +78,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun syncDeviceData() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isSyncing = true)
+            _uiState.value = _uiState.value.copy(isSyncing = true, message = "Syncing real contacts and call records from device...")
             val contacts = repository.syncDeviceContacts()
             val calls = repository.syncSystemCallLogs()
             _uiState.value = _uiState.value.copy(
                 isSyncing = false,
                 message = "Synced $contacts contacts and $calls call records from device"
             )
-        }
-    }
-
-    fun testFloatingOverlay(isSpam: Boolean) {
-        val app = getApplication<Application>()
-        if (!PermissionHelper.canDrawOverlays(app)) {
-            _uiState.value = _uiState.value.copy(
-                message = "Please grant 'Display Over Other Apps' permission first to show floating overlay"
-            )
-            return
-        }
-
-        if (isSpam) {
-            com.example.service.CallDetectionManager.simulateIncomingCall(
-                context = app,
-                number = "+1 (888) 998-1234",
-                name = "Urgent Bank Security Alert",
-                category = "Suspected Financial Fraud",
-                spamScore = 95,
-                isSpam = true,
-                city = "New York, NY",
-                carrier = "VoIP Digital Relay"
-            )
-            _uiState.value = _uiState.value.copy(message = "Displaying Spam Warning Floating Overlay 🚨")
-        } else {
-            com.example.service.CallDetectionManager.simulateIncomingCall(
-                context = app,
-                number = "+1 (800) 555-0199",
-                name = "Apex Global Logistics",
-                category = "Verified Business Contact",
-                spamScore = 8,
-                isSpam = false,
-                city = "San Francisco, CA",
-                carrier = "Verizon Wireless"
-            )
-            _uiState.value = _uiState.value.copy(message = "Displaying Verified Caller Floating Overlay ⚡")
         }
     }
 

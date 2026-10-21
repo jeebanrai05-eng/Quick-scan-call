@@ -78,6 +78,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.ui.components.ForceUpdateDialog
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -134,6 +135,7 @@ fun HomeScreen(
     val statusMessage by callerViewModel.statusMessage.collectAsStateWithLifecycle()
 
     val updateUiState = updateViewModel?.uiState?.collectAsStateWithLifecycle()?.value
+    val currentUpdateStatus = updateUiState?.status
     var isUpdateBannerDismissed by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -487,6 +489,14 @@ fun HomeScreen(
                     }
                 }
             }
+        }
+
+        // Mandatory Force Update Dialog
+        if (currentUpdateStatus is com.example.viewmodel.UpdateStatus.ForceUpdateRequired) {
+            ForceUpdateDialog(
+                updateInfo = currentUpdateStatus.updateInfo,
+                onProceedToUpdate = onNavigateToUpdate
+            )
         }
     }
 }

@@ -231,6 +231,13 @@ fun UpdateScreen(
                     onDownloadClick = { updateViewModel.startDownload(status.updateInfo) }
                 )
             }
+            is UpdateStatus.ForceUpdateRequired -> {
+                UpdateAvailableCard(
+                    updateInfo = status.updateInfo,
+                    onDownloadClick = { updateViewModel.startDownload(status.updateInfo) },
+                    isForceUpdate = true
+                )
+            }
             is UpdateStatus.Downloading -> {
                 DownloadingCard(
                     percent = status.percent,
@@ -522,10 +529,29 @@ private fun UpToDateStatusCard(version: String, onRecheck: () -> Unit) {
 @Composable
 private fun UpdateAvailableCard(
     updateInfo: AppUpdateInfo,
-    onDownloadClick: () -> Unit
+    onDownloadClick: () -> Unit,
+    isForceUpdate: Boolean = false
 ) {
     GlassCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(18.dp)) {
+            if (isForceUpdate) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = SpamRed.copy(alpha = 0.2f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, SpamRed),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "🚨 MANDATORY SECURITY & PRIVACY UPDATE",
+                        color = SpamRed,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -535,20 +561,20 @@ private fun UpdateAvailableCard(
                     Icon(
                         imageVector = Icons.Default.CloudDownload,
                         contentDescription = null,
-                        tint = NeonGreen,
+                        tint = if (isForceUpdate) SpamRed else NeonGreen,
                         modifier = Modifier.size(28.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = "New Update Available!",
+                            text = if (isForceUpdate) "Critical Update Required!" else "New Update Available!",
                             color = TextPrimary,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.ExtraBold
                         )
                         Text(
                             text = "Version ${updateInfo.versionName} (Build #${updateInfo.versionCode})",
-                            color = NeonGreen,
+                            color = if (isForceUpdate) SpamRed else NeonGreen,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
                         )

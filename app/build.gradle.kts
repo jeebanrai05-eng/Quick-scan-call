@@ -16,8 +16,8 @@ android {
     applicationId = "com.aistudio.detectcaller.qkcall"
     minSdk = 26
     targetSdk = 35
-    versionCode = project.findProperty("versionCode")?.toString()?.toIntOrNull() ?: 7
-    versionName = project.findProperty("versionName")?.toString() ?: "1.0.6"
+    versionCode = project.findProperty("versionCode")?.toString()?.toIntOrNull() ?: 8
+    versionName = project.findProperty("versionName")?.toString() ?: "1.0.7"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

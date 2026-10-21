@@ -23,6 +23,7 @@ sealed class UpdateStatus {
     data object Checking : UpdateStatus()
     data class UpToDate(val currentVersion: String, val lastCheckedTime: Long) : UpdateStatus()
     data class UpdateAvailable(val updateInfo: AppUpdateInfo, val currentVersion: String) : UpdateStatus()
+    data class ForceUpdateRequired(val updateInfo: AppUpdateInfo, val currentVersion: String) : UpdateStatus()
     data class Downloading(val percent: Int, val downloadedBytes: Long, val totalBytes: Long) : UpdateStatus()
     data class ReadyToInstall(val apkFile: File, val updateInfo: AppUpdateInfo) : UpdateStatus()
     data class DebugToReleaseNotice(val apkFile: File, val updateInfo: AppUpdateInfo, val releaseCert: String) : UpdateStatus()
@@ -74,14 +75,26 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
             result.onSuccess { info ->
                 val currentCode = repository.getCurrentVersionCode()
                 if (info.versionCode > currentCode) {
-                    _uiState.update {
-                        it.copy(
-                            status = UpdateStatus.UpdateAvailable(
-                                updateInfo = info,
-                                currentVersion = repository.getCurrentVersionName()
-                            )
+                    val isForce = currentCode < info.minimumSupportedVersion
+                    val newStatus = if (isForce) {
+                        UpdateStatus.ForceUpdateRequired(
+                            updateInfo = info,
+                            currentVersion = repository.getCurrentVersionName()
+                        )
+                    } else {
+                        UpdateStatus.UpdateAvailable(
+                            updateInfo = info,
+                            currentVersion = repository.getCurrentVersionName()
                         )
                     }
+                    _uiState.update { it.copy(status = newStatus) }
+
+                    // Post system notification to notify user of the update
+                    com.example.utils.UpdateNotificationHelper.showUpdateNotification(
+                        context = getApplication(),
+                        updateInfo = info,
+                        isForceUpdate = isForce
+                    )
                 } else {
                     _uiState.update {
                         it.copy(

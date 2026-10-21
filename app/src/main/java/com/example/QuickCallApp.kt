@@ -57,14 +57,25 @@ class QuickCallApp : Application() {
                 description = "Keeps floating caller identification overlay active during phone calls"
             }
 
+            val updateChannel = NotificationChannel(
+                CHANNEL_APP_UPDATES,
+                "Software Updates & Critical Alerts",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Alerts about mandatory application updates and security improvements"
+                enableVibration(true)
+            }
+
             manager.createNotificationChannel(callChannel)
             manager.createNotificationChannel(overlayServiceChannel)
+            manager.createNotificationChannel(updateChannel)
         }
     }
 
     companion object {
         const val CHANNEL_CALLER_ID = "channel_caller_id"
         const val CHANNEL_OVERLAY_SERVICE = "channel_overlay_service"
+        const val CHANNEL_APP_UPDATES = "channel_app_updates"
 
         lateinit var instance: QuickCallApp
             private set
