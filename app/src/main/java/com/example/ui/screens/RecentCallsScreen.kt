@@ -24,12 +24,12 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.automirrored.filled.CallMade
+import androidx.compose.material.icons.automirrored.filled.CallMissed
+import androidx.compose.material.icons.automirrored.filled.CallReceived
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallEnd
-import androidx.compose.material.icons.filled.CallMade
-import androidx.compose.material.icons.filled.CallMissed
-import androidx.compose.material.icons.filled.CallReceived
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Security
@@ -275,9 +275,9 @@ private fun RecentCallCard(
     }
 
     val (callTypeIcon, callTypeColor, callTypeLabel) = when (record.callType) {
-        CallType.INCOMING -> Triple(Icons.Default.CallReceived, CyberCyan, "Incoming")
-        CallType.OUTGOING -> Triple(Icons.Default.CallMade, NeonGreen, "Outgoing")
-        CallType.MISSED -> Triple(Icons.Default.CallMissed, WarningAmber, "Missed")
+        CallType.INCOMING -> Triple(Icons.AutoMirrored.Filled.CallReceived, CyberCyan, "Incoming")
+        CallType.OUTGOING -> Triple(Icons.AutoMirrored.Filled.CallMade, NeonGreen, "Outgoing")
+        CallType.MISSED -> Triple(Icons.AutoMirrored.Filled.CallMissed, WarningAmber, "Missed")
         CallType.REJECTED -> Triple(Icons.Default.CallEnd, TextMuted, "Declined")
         CallType.SPAM_BLOCKED -> Triple(Icons.Default.Warning, SpamRed, "Spam Blocked")
     }

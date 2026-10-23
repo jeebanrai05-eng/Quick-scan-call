@@ -275,15 +275,17 @@ private fun QuickCallBottomNavigation(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(26.dp),
-            color = Color(0xF50A111F),
-            tonalElevation = 14.dp,
+            color = Color(0xF7091122),
+            tonalElevation = 16.dp,
+            shadowElevation = 12.dp,
             border = androidx.compose.foundation.BorderStroke(
-                1.dp,
+                1.2.dp,
                 Brush.horizontalGradient(
                     listOf(
-                        Color(0x3300FF66),
-                        Color(0x4000F0FF),
-                        Color(0x3300FF66)
+                        NeonGreen.copy(alpha = 0.45f),
+                        CyberCyan.copy(alpha = 0.55f),
+                        com.example.ui.theme.CyberViolet.copy(alpha = 0.5f),
+                        NeonGreen.copy(alpha = 0.45f)
                     )
                 )
             )
@@ -292,7 +294,7 @@ private fun QuickCallBottomNavigation(
                 containerColor = Color.Transparent,
                 tonalElevation = 0.dp,
                 modifier = Modifier
-                    .height(66.dp)
+                    .height(68.dp)
                     .testTag("bottom_nav_bar")
             ) {
                 Screen.bottomNavItems.forEach { screen ->

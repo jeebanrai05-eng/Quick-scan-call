@@ -1,9 +1,9 @@
 {
-  "versionCode": 8,
-  "versionName": "1.0.7",
-  "apkUrl": "https://github.com/jeebanrai05-eng/Quick-scan-call/releases/download/v1.0.7/app-release.apk",
-  "releaseNotes": "\u2022 CRITICAL MANDATORY UPDATE v1.0.7 (Security & Privacy Compliance)\n\u2022 Official Privacy Policy integrated: https://queeckcall.gt.tc/?i=1\n\u2022 Removed simulated mock calls; upgraded to real telephony listeners & system runtime permissions\n\u2022 Added in-app Privacy Policy dialog & external web viewer\n\u2022 Added immediate system update notifications\n\u2022 All older versions (v1.0.6 and below) require immediate mandatory update to v1.0.7",
-  "minimumSupportedVersion": 8,
-  "fileSize": 61453503,
-  "sha256": "f202bc8e4b9f2e51c307553bdaad019c646a7c569d08407f24a245150f4d6566"
+  "versionCode": 9,
+  "versionName": "2.0.0",
+  "apkUrl": "https://github.com/jeebanrai05-eng/Quick-scan-call/releases/download/v2.0.0/app-release.apk",
+  "releaseNotes": "• MAJOR NEXT-GEN 2.0 UPDATE (Cyber-Glass UI Overhaul)\n• Brand-New Holographic Scam Radar & 120 FPS Trust Matrix Gauge\n• Smart vCard & AI Contact Card Generator with 1-tap Google Contacts Export\n• Cyber VIP Speed Dock with instant WhatsApp & Direct Call launchers\n• Real-Time Call Notes & Follow-up Reminder Vault\n• Dynamic Audio & Telemetry Equalizer Waveform Visualizer\n• Enhanced Animated Floating Cyber Navigation Dock with spring bounce physics\n• Official Privacy Policy: https://queeckcall.gt.tc/?i=1",
+  "minimumSupportedVersion": 9,
+  "fileSize": 61486271,
+  "sha256": "33e7a1917aebb8b941aee08d7cd3b2be67689c1c90fd79924c8f34542fb7a496"
 }

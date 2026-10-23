@@ -27,15 +27,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ContactPage
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Security
@@ -43,6 +44,11 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Warning
+import com.example.data.model.DocumentData
+import com.example.ui.components.CallNoteDialog
+import com.example.ui.components.CyberWaveformVisualizer
+import com.example.ui.components.ScamRadarGauge
+import com.example.ui.components.VCardExportSheet
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -122,117 +128,40 @@ fun CallerPopupScreen(
 
     var showReportDialog by remember { mutableStateOf(false) }
     var showTagDialog by remember { mutableStateOf(false) }
+    var showVCardSheet by remember { mutableStateOf(false) }
 
-    var editingTag by remember(activeCaller) { mutableStateOf(activeCaller?.tag ?: "WORK") }
-    var editingNote by remember(activeCaller) { mutableStateOf(activeCaller?.note ?: "") }
-
-    // Tag / Note Editor Dialog
+    // Cyber Call Note & Tag Dialog
     if (showTagDialog) {
-        AlertDialog(
-            onDismissRequest = { showTagDialog = false },
-            containerColor = DarkSurfaceVariant,
-            title = {
-                Text(
-                    text = "Add Custom Tag & Note",
-                    color = TextPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp
-                )
-            },
-            text = {
-                Column {
-                    Text(
-                        text = "Select Category Tag:",
-                        color = TextSecondary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    val presetTags = listOf("WORK", "FAMILY", "FRIEND", "DELIVERY", "CLIENT", "SPAM")
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        presetTags.take(3).forEach { tag ->
-                            val isSelected = editingTag.equals(tag, ignoreCase = true)
-                            Surface(
-                                onClick = { editingTag = tag },
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isSelected) CyberCyan else Color(0xFF142033),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) CyberCyan else Color(0x33475569))
-                            ) {
-                                Text(
-                                    text = tag,
-                                    color = if (isSelected) Color(0xFF04121F) else TextSecondary,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                )
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        presetTags.drop(3).forEach { tag ->
-                            val isSelected = editingTag.equals(tag, ignoreCase = true)
-                            Surface(
-                                onClick = { editingTag = tag },
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isSelected) CyberCyan else Color(0xFF142033),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) CyberCyan else Color(0x33475569))
-                            ) {
-                                Text(
-                                    text = tag,
-                                    color = if (isSelected) Color(0xFF04121F) else TextSecondary,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Text(
-                        text = "Private Note:",
-                        color = TextSecondary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    OutlinedTextField(
-                        value = editingNote,
-                        onValueChange = { editingNote = it },
-                        placeholder = { Text("e.g. Electrician, College Friend, Office Desk", color = TextMuted) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary,
-                            focusedBorderColor = CyberCyan,
-                            unfocusedBorderColor = Color(0x33475569)
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        callerViewModel.updateCallerNoteAndTag(phoneNumber, editingNote, editingTag)
-                        showTagDialog = false
-                    }
-                ) {
-                    Text("Save Tag", color = NeonGreen, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showTagDialog = false }) {
-                    Text("Cancel", color = TextSecondary)
-                }
+        CallNoteDialog(
+            phoneNumber = phoneNumber,
+            callerName = activeCaller?.name ?: callerName,
+            initialNote = activeCaller?.note,
+            initialTag = activeCaller?.tag,
+            onDismiss = { showTagDialog = false },
+            onSave = { note, tag ->
+                callerViewModel.updateCallerNoteAndTag(phoneNumber, note, tag)
             }
+        )
+    }
+
+    // AI Smart vCard Exporter Studio Sheet
+    if (showVCardSheet) {
+        val docData = DocumentData(
+            businessName = activeCaller?.category?.takeIf { it != "Unknown" && it.isNotBlank() },
+            contactName = activeCaller?.name ?: callerName,
+            phoneNumbers = listOf(
+                com.example.data.model.ScanResult(
+                    rawText = phoneNumber,
+                    phoneNumber = phoneNumber,
+                    formattedNumber = phoneNumber,
+                    countryName = activeCaller?.country ?: "US"
+                )
+            ),
+            addresses = listOfNotNull(activeCaller?.city?.takeIf { it != "Unknown" && it.isNotBlank() })
+        )
+        VCardExportSheet(
+            documentData = docData,
+            onDismiss = { showVCardSheet = false }
         )
     }
 
@@ -450,6 +379,15 @@ fun CallerPopupScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Dynamic Audio & Telemetry Waveform Visualizer
+            CyberWaveformVisualizer(
+                width = 130.dp,
+                height = 24.dp,
+                isActive = true
+            )
+
             Spacer(modifier = Modifier.height(16.dp))
 
             // Gemini AI Deep Security Audit Card
@@ -596,48 +534,23 @@ fun CallerPopupScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Community Threat Radar Card
+            // Community Threat Holographic Radar Gauge Card
             NeonGlassCard(
                 modifier = Modifier.fillMaxWidth(),
                 isSpamAlert = isSpam,
-                cornerRadius = 20.dp
+                cornerRadius = 22.dp
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp)
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "COMMUNITY THREAT RADAR",
-                            color = TextMuted,
-                            fontSize = 10.5.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 1.sp
-                        )
-
-                        Text(
-                            text = "Score: ${analysis?.score ?: 0}/100",
-                            color = if (isSpam) SpamRed else NeonGreen,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    LinearProgressIndicator(
-                        progress = { ((analysis?.score ?: 0) / 100f).coerceIn(0f, 1f) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(7.dp)
-                            .clip(RoundedCornerShape(4.dp)),
-                        color = if (isSpam) SpamRed else NeonGreen,
-                        trackColor = Color(0xFF1E293B)
+                    ScamRadarGauge(
+                        spamScore = analysis?.score ?: (activeCaller?.spamScore ?: 0),
+                        reportsCount = activeCaller?.reportsCount ?: 0,
+                        carrier = activeCaller?.carrier ?: "Cellular",
+                        size = 180.dp
                     )
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -646,33 +559,45 @@ fun CallerPopupScreen(
                         text = analysis?.warningReason ?: "Clean number with zero fraud reports.",
                         color = if (isSpam) Color(0xFFFF99AA) else TextSecondary,
                         fontSize = 12.5.sp,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center
                     )
 
                     if (!activeCaller?.note.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "📝 Note: ${activeCaller?.note}",
-                            color = CyberCyan,
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Medium
-                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0x3300F0FF)
+                        ) {
+                            Text(
+                                text = "📝 Note: ${activeCaller?.note}",
+                                color = CyberCyan,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Quick Action Icons (Tag, WhatsApp, SMS, Copy, Save, Share)
+                    // Quick Action Icons (Tag/Note, vCard Studio, SMS, Copy, Save, Share)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
                         QuickActionRoundButton(
                             icon = Icons.Default.Bookmark,
-                            label = "Tag / Note",
+                            label = "Note",
                             onClick = { showTagDialog = true }
                         )
                         QuickActionRoundButton(
-                            icon = Icons.Default.Message,
+                            icon = Icons.Default.ContactPage,
+                            label = "vCard",
+                            onClick = { showVCardSheet = true }
+                        )
+                        QuickActionRoundButton(
+                            icon = Icons.AutoMirrored.Filled.Message,
                             label = "SMS",
                             onClick = { PhoneActionHelper.sendSms(context, phoneNumber) }
                         )

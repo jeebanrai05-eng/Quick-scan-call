@@ -60,6 +60,7 @@ fun DocumentSummaryCard(
 ) {
     val context = LocalContext.current
     var isExpanded by remember { mutableStateOf(true) }
+    var showVCardSheet by remember { mutableStateOf(false) }
 
     val hasDetails = !documentData.businessName.isNullOrBlank() ||
             !documentData.contactName.isNullOrBlank() ||
@@ -207,10 +208,10 @@ fun DocumentSummaryCard(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // Bottom Action Bar: Save All as Contact & Copy Summary
+                    // Bottom Action Bar: Save All as Contact, vCard Studio & Copy Summary
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Surface(
@@ -227,24 +228,47 @@ fun DocumentSummaryCard(
                             },
                             shape = RoundedCornerShape(10.dp),
                             color = NeonGreen.copy(alpha = 0.15f),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, NeonGreen.copy(alpha = 0.5f))
+                            border = androidx.compose.foundation.BorderStroke(1.dp, NeonGreen.copy(alpha = 0.5f)),
+                            modifier = Modifier.weight(1f)
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
+                                horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.PersonAdd,
                                     contentDescription = null,
                                     tint = NeonGreen,
-                                    modifier = Modifier.size(15.dp)
+                                    modifier = Modifier.size(14.dp)
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = "SAVE AS CONTACT",
+                                    text = "SAVE",
                                     color = NeonGreen,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        Surface(
+                            onClick = { showVCardSheet = true },
+                            shape = RoundedCornerShape(10.dp),
+                            color = com.example.ui.theme.CyberViolet.copy(alpha = 0.18f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, com.example.ui.theme.CyberViolet.copy(alpha = 0.6f)),
+                            modifier = Modifier.weight(1.3f)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "🪪 VCARD STUDIO",
+                                    color = com.example.ui.theme.CyberViolet,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.ExtraBold
                                 )
                             }
                         }
@@ -262,20 +286,29 @@ fun DocumentSummaryCard(
                                 PhoneActionHelper.copyToClipboard(context, summary, "Document Info")
                             },
                             shape = RoundedCornerShape(10.dp),
-                            color = Color(0x22FFFFFF)
+                            color = Color(0x22FFFFFF),
+                            modifier = Modifier.weight(1f)
                         ) {
                             Text(
-                                text = "Copy Summary",
+                                text = "Copy Text",
                                 color = TextSecondary,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
                         }
                     }
                 }
             }
         }
+    }
+
+    if (showVCardSheet) {
+        VCardExportSheet(
+            documentData = documentData,
+            onDismiss = { showVCardSheet = false }
+        )
     }
 }
 

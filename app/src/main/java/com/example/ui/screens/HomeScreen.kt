@@ -37,13 +37,14 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.automirrored.filled.CallMade
+import androidx.compose.material.icons.automirrored.filled.CallMissed
+import androidx.compose.material.icons.automirrored.filled.CallReceived
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.CallMade
-import androidx.compose.material.icons.filled.CallMissed
-import androidx.compose.material.icons.filled.CallReceived
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
+import com.example.ui.components.CyberWaveformVisualizer
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.Image
@@ -525,38 +526,67 @@ private fun HomeHeader(
     ) {
         Column {
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .background(Color(0x2B00FF66), RoundedCornerShape(16.dp))
-                    .border(1.dp, NeonGreen.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
-                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
-                        .size(8.dp)
-                        .graphicsLayer {
-                            scaleX = beaconScale
-                            scaleY = beaconScale
-                        }
-                        .background(NeonGreen, CircleShape)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
+                        .background(Color(0x2B00FF66), RoundedCornerShape(16.dp))
+                        .border(1.dp, NeonGreen.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .graphicsLayer {
+                                scaleX = beaconScale
+                                scaleY = beaconScale
+                            }
+                            .background(NeonGreen, CircleShape)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "CALL SHIELD: ACTIVE",
+                        color = NeonGreen,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 0.8.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = com.example.ui.theme.CyberViolet.copy(alpha = 0.2f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, com.example.ui.theme.CyberViolet.copy(alpha = 0.5f))
+                ) {
+                    Text(
+                        text = "v2.0 NEXT-GEN",
+                        color = com.example.ui.theme.CyberViolet,
+                        fontSize = 9.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.5.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "CALL SHIELD: ACTIVE",
-                    color = NeonGreen,
-                    fontSize = 10.5.sp,
+                    text = "Quick Call Scan",
+                    color = TextPrimary,
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 0.8.sp
+                    letterSpacing = (-0.5).sp
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                CyberWaveformVisualizer(
+                    width = 48.dp,
+                    height = 18.dp,
+                    isActive = true
                 )
             }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Quick Call Scan",
-                color = TextPrimary,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = (-0.5).sp
-            )
         }
 
         // Real Modern Sync Button
@@ -888,10 +918,10 @@ private fun HomeCallRecordItem(
     }
 
     val (typeIcon, typeColor) = when (record.callType) {
-        CallType.INCOMING -> Icons.Default.CallReceived to CyberCyan
-        CallType.OUTGOING -> Icons.Default.CallMade to NeonGreen
-        CallType.MISSED -> Icons.Default.CallMissed to WarningAmber
-        CallType.REJECTED -> Icons.Default.CallReceived to TextMuted
+        CallType.INCOMING -> Icons.AutoMirrored.Filled.CallReceived to CyberCyan
+        CallType.OUTGOING -> Icons.AutoMirrored.Filled.CallMade to NeonGreen
+        CallType.MISSED -> Icons.AutoMirrored.Filled.CallMissed to WarningAmber
+        CallType.REJECTED -> Icons.AutoMirrored.Filled.CallReceived to TextMuted
         CallType.SPAM_BLOCKED -> Icons.Default.Warning to SpamRed
     }
 
